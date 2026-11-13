@@ -1,0 +1,15 @@
+Pixel-Sampling Design-Tokens — phase0-design-freeze.png
+Bildgröße: 1280x800
+
+Canvas   #10131A  Treffer-Pixel: 507237
+  - Koordinate (0,0)  gemessen: srgb(16,19,26)  Soll: #10131A
+Controls #1A1E29  Treffer-Pixel: 482665
+  - Koordinate (884,0)  gemessen: srgb(26,30,41)  Soll: #1A1E29
+Hover    #1F2433  Treffer-Pixel: 14296
+  - Koordinate (916,83)  gemessen: srgb(31,36,51)  Soll: #1F2433
+Akzent   #00B4D8  Treffer-Pixel: 2912
+  - Koordinate (682,31)  gemessen: srgb(0,180,216)  Soll: #00B4D8
+Positiv  #22C55E  Treffer-Pixel: 0
+Text primär #FFFFFF  Treffer-Pixel: 312
+
+Bounding-Box der Akzentfarbe: 852x239+111+31

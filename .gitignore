@@ -1,0 +1,18 @@
+# Buildprodukte (SPEC §11: keine Binaries im Repo)
+/target/
+
+# Portables Laufzeitverzeichnis (SPEC §5) — entsteht erst beim Start der App
+/Data/
+
+# Auslieferungs-Binaries (lokale Archivarbeitskopie, nicht im Repo)
+/delivery/
+
+# Alte Screenshot-Sätze — gehören in die lokale Archivarbeitskopie
+/screenshots/-alt/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

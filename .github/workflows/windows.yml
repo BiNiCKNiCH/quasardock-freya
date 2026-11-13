@@ -1,0 +1,61 @@
+name: windows-build
+
+# Windows-EXE für QuasarDock (Freya/Skia). Der Build läuft NUR hier, weil Skia
+# auf einem Windows-Läufer nativ gegen die MSVC-Toolchain gebaut wird — ein
+# Cross-Compile von Linux aus ist für diesen Stack nicht praktikabel
+# (Begründung: docs/BUILD.md, Abschnitt „Windows-Pfad").
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Tests (Windows)
+        run: cargo test --all-targets
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Release-Build
+        run: cargo build --release --locked
+
+      - name: Portable-ZIP packen
+        shell: pwsh
+        run: |
+          # Portable = EXE plus der beim ersten Start angelegte Data-Ordner bleibt
+          # im Programmverzeichnis. Kein Installer, keine Registry, kein AppData.
+          New-Item -ItemType Directory -Force -Path staging | Out-Null
+          Copy-Item "target/release/quasardock.exe" staging/
+          Copy-Item "app-icon.png" staging/
+          Copy-Item "README.md" staging/
+          Compress-Archive -Path "staging/*" -DestinationPath "quasardock-windows-x64-portable.zip"
+
+      - name: Prüfen, dass die EXE wirklich da ist
+        shell: pwsh
+        run: |
+          $exe = Get-Item "target/release/quasardock.exe"
+          Write-Host ("quasardock.exe: {0} Bytes" -f $exe.Length)
+          if ($exe.Length -lt 1MB) { throw "EXE unerwartet klein — Build fehlgeschlagen?" }
+
+      - name: Artifact hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: quasardock-windows-x64
+          path: |
+            quasardock-windows-x64-portable.zip
+            target/release/quasardock.exe
+          if-no-files-found: error
+          retention-days: 90
