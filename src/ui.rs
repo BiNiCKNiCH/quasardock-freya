@@ -12,7 +12,7 @@
 
 use freya::prelude::*;
 
-use crate::design;
+use quasardock::design;
 
 /// Wurzelkomponente des Fensters.
 pub fn app() -> impl IntoElement {

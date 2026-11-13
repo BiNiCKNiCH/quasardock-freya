@@ -2948,6 +2948,8 @@ name = "quasardock"
 version = "0.1.0"
 dependencies = [
  "freya",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

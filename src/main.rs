@@ -2,10 +2,10 @@
 //!
 //! Phase 0: Grundgerüst, Design-Freeze und Machbarkeitsnachweis.
 
-mod design;
-mod ui;
+mod ui; // UI-Scaffold (Phase 0); nutzt `quasardock::design`.
 
 use freya::prelude::*;
+use quasardock::design;
 
 /// Eingefrorenes Programmicon (unverändert aus der Referenz übernommen).
 const APP_ICON: &[u8] = include_bytes!("../app-icon.png");
