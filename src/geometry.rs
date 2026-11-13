@@ -148,7 +148,7 @@ fn fallback_monitor() -> ScreenRect {
 }
 
 #[cfg(windows)]
-fn spi_work_area() -> Option<ScreenRect> {
+pub fn spi_work_area() -> Option<ScreenRect> {
     use std::os::raw::c_void;
     use windows_sys::Win32::Foundation::RECT;
     use windows_sys::Win32::UI::WindowsAndMessaging::{SPI_GETWORKAREA, SystemParametersInfoW};
@@ -286,5 +286,105 @@ mod tests {
         let (m, _w) = primary_screen();
         assert_eq!((m.width, m.height), (2560, 1440));
         unsafe { std::env::remove_var("QD_MONITOR") };
+    }
+
+    // --- Neue Tests für Defekt 1: plattformfreie Andock-Rechnung ---
+
+    #[test]
+    fn dock_sekundaerer_monitor_rechts() {
+        // Zweiter Monitor rechts neben dem primären (x=1920), 2560x1440.
+        let monitor = ScreenRect {
+            x: 1920,
+            y: 0,
+            width: 2560,
+            height: 1440,
+        };
+        // Taskleiste 48 px unten -> Arbeitsfläche 2560x1392.
+        let work = ScreenRect {
+            x: 1920,
+            y: 0,
+            width: 2560,
+            height: 1392,
+        };
+        let r = dock_rect(300, 600, monitor, work);
+        // Bündig am rechten Rand des ZWEITEN Monitors.
+        assert_eq!(
+            r.x,
+            1920 + 2560 - 300,
+            "rechter Rand des sekundären Monitors"
+        );
+        // Fensterunterkante = Taskleisten-Oberkante = 1440 - 48 = 1392 -> y = 1392 - 600 = 792.
+        assert_eq!(r.y, 792);
+        assert_eq!((r.width, r.height), (300, 600));
+    }
+
+    #[test]
+    fn dock_dpi_150_physikalisch() {
+        // 1920x1080 bei 150 % Skalierung -> physisch 2880x1620, Taskleiste 60 px.
+        let monitor = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 2880,
+            height: 1620,
+        };
+        let work = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 2880,
+            height: 1560,
+        };
+        let r = dock_rect(450, 900, monitor, work);
+        assert_eq!(r.x, 2880 - 450, "physisch bündig am rechten Rand");
+        // taskbar_top = 1620 - 60 = 1560 -> y = 1560 - 900 = 660.
+        assert_eq!(r.y, 660);
+    }
+
+    #[test]
+    fn maybe_dock_fenster_bereits_buendig() {
+        let monitor = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let work = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1040,
+        };
+        // Fenster liegt bereits bündig am rechten Rand + Oberkante Taskleiste.
+        let flush = ScreenRect {
+            x: 1920 - 300,
+            y: 1040 - 600,
+            width: 300,
+            height: 600,
+        };
+        // maybe_dock darf dann NICHT verschieben (kein erneutes Springen).
+        assert_eq!(maybe_dock(flush, monitor, work, DOCK_THRESHOLD), flush);
+    }
+
+    #[test]
+    fn maybe_dock_nur_bei_rechter_kante() {
+        let monitor = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let work = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1040,
+        };
+        // Links oben -> weit weg von der rechten Kante -> unverändert.
+        let left = ScreenRect {
+            x: 50,
+            y: 50,
+            width: 300,
+            height: 600,
+        };
+        assert_eq!(maybe_dock(left, monitor, work, DOCK_THRESHOLD), left);
     }
 }

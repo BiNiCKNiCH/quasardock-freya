@@ -62,6 +62,8 @@ struct AppCtx {
     folder_rename_name: State<String>,
     folder_add_name: State<String>,
     accent_hex: State<String>,
+    // Fenster-Zieh-Status (für Live-Andocken während des Ziehens, SPEC §6).
+    window_dragging: State<bool>,
 }
 
 /// Laufzeit-Zustand eines Drag-Vorgangs (eigene Pointer-Events).
@@ -415,6 +417,7 @@ pub fn app() -> impl IntoElement {
     let folder_rename_name = use_state(String::new);
     let folder_add_name = use_state(String::new);
     let accent_hex = use_state(String::new);
+    let window_dragging = use_state(|| false);
 
     let ctx = AppCtx {
         store,
@@ -440,6 +443,7 @@ pub fn app() -> impl IntoElement {
         folder_rename_name,
         folder_add_name,
         accent_hex,
+        window_dragging,
     };
 
     // Screenshot/Demo-Initialzustand per Env-Variable QD_INIT (JSON).
@@ -547,6 +551,10 @@ pub fn app() -> impl IntoElement {
                     }
                 });
             }
+            // Fenster live am Bildschirmrand andocken, während es gezogen wird (SPEC §6).
+            if snap(&ctx_gpm.window_dragging) && snap(&ctx_gpm.config).settings.dock_to_edge {
+                windowing::dock_if_near(&Platform::get(), Platform::window_id());
+            }
         })
         .on_global_pointer_up(move |_: Event<PointerEventData>| {
             if let DragState::Dragging {
@@ -617,7 +625,7 @@ pub fn app() -> impl IntoElement {
 // ---------------------------------------------------------------------------
 
 fn titlebar(_ctx: AppCtx) -> impl IntoElement {
-    let _ctx = _ctx.clone();
+    let ctx = _ctx.clone();
     rect()
         .width(Size::fill())
         .height(Size::px(TITLEBAR_H))
@@ -626,7 +634,18 @@ fn titlebar(_ctx: AppCtx) -> impl IntoElement {
         .cross_align(Alignment::Center)
         .main_align(Alignment::End)
         .padding(Gaps::new(0.0, 12.0, 0.0, 12.0))
-        .window_drag()
+        .on_pointer_down({
+            let ctx = ctx.clone();
+            move |_| {
+                // Fenster-Zieh-Status merken und echtes OS-Drag starten (DPI-/Multi-Monitor-korrekt).
+                ctx.window_dragging.set_val(true);
+                let p = Platform::get();
+                let id = Platform::window_id();
+                p.with_window(id, |w| {
+                    let _ = w.drag_window();
+                });
+            }
+        })
         .child(
             rect()
                 .width(Size::px(30.0))
@@ -636,7 +655,7 @@ fn titlebar(_ctx: AppCtx) -> impl IntoElement {
                 .border(Border::new().fill(design::BORDER).width(1.0))
                 .cross_align(Alignment::Center)
                 .main_align(Alignment::Center)
-                .on_press(move |_| close_to_tray(&_ctx.clone()))
+                .on_press(move |_| close_to_tray(&ctx.clone()))
                 .child(
                     label()
                         .text("✕")

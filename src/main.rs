@@ -11,7 +11,7 @@ mod ui; // UI (Phase 2) + Systemintegration-Verdrahtung (Phase 3).
 use freya::prelude::*;
 use quasardock::design;
 use quasardock::store::Store;
-use winit::dpi::{LogicalPosition, LogicalSize};
+use winit::dpi::{LogicalPosition, LogicalSize, PhysicalPosition};
 
 /// Eingefrorenes Programmicon (unverändert aus der Referenz übernommen).
 const APP_ICON: &[u8] = include_bytes!("../app-icon.png");
@@ -96,19 +96,7 @@ fn main() {
                 // (kein Show-then-Hide, kein Fenster-Blitz).
                 .with_window_attributes(move |attrs, _ev| {
                     let mut a = attrs;
-                    if dock_at_start {
-                        // "Am Bildschirmrand andocken": Fenster bündig an den rechten
-                        // Monitorrand + Oberkante der Taskleiste (reine Geometrie-Rechnung,
-                        // plattformfrei — siehe geometry::dock_rect).
-                        let (monitor, work) = quasardock::geometry::primary_screen();
-                        let dock_w = 400i32;
-                        let dock_h = work.height;
-                        let r = quasardock::geometry::dock_rect(dock_w, dock_h, monitor, work);
-                        a = a.with_position(LogicalPosition::new(r.x as f64, r.y as f64));
-                        a = a.with_inner_size(LogicalSize::new(r.width as f64, r.height as f64));
-                    } else if let Some(g) =
-                        saved_geometry.filter(|_| remember_geometry && !start_hidden)
-                    {
+                    if let Some(g) = saved_geometry.filter(|_| remember_geometry && !start_hidden) {
                         // Gespeicherte Fenstergeometrie wiederherstellen (nur aus sichtbaren
                         // Zuständen: nicht, wenn wir versteckt starten).
                         a = a.with_position(LogicalPosition::new(g.x as f64, g.y as f64));
@@ -128,9 +116,25 @@ fn main() {
                 // Schließen (X) versteckt das Fenster nur (Beenden über das Tray-Menü).
                 .with_on_close(|_ctx, _id| CloseDecision::KeepOpen)
                 // Windows: Taskleisten-Eintrag unterdrücken (WS_EX_TOOLWINDOW).
-                .with_window_handle(|_window| {
+                .with_window_handle(move |window| {
                     #[cfg(windows)]
-                    quasardock::windowing::platform_set_skip_taskbar(_window);
+                    quasardock::windowing::platform_set_skip_taskbar(window);
+                    // „Am Bildschirmrand andocken" beim Start (SPEC §6): erst JETZT hat das
+                    // Fenster eine echte Monitor-Zuordnung — daher hier, nicht in den
+                    // Fenster-Attributen (dort wäre die Geometrie noch unbekannt/DPI-falsch).
+                    if dock_at_start && !start_hidden {
+                        let (monitor, work) =
+                            quasardock::windowing::monitor_rects_for_window(window);
+                        let size = window.outer_size();
+                        let r = quasardock::geometry::dock_rect(
+                            size.width as i32,
+                            size.height as i32,
+                            monitor,
+                            work,
+                        );
+                        let _ = window
+                            .set_outer_position(PhysicalPosition::new(r.x as f64, r.y as f64));
+                    }
                 }),
         ),
     );
