@@ -41,10 +41,8 @@ fn main() {
     // frisch geschrieben. Keine Wirkung, wenn die Einstellung aus ist.
     if let Ok(s) = Store::open(None) {
         let enabled = s.config().settings.windows_autostart;
-        if enabled {
-            if let Err(e) = quasardock::autostart::self_heal_autostart(true) {
-                eprintln!("[autostart] self-heal: {}", e);
-            }
+        if enabled && let Err(e) = quasardock::autostart::self_heal_autostart(true) {
+            eprintln!("[autostart] self-heal: {}", e);
         }
     }
 

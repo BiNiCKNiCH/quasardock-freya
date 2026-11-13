@@ -118,18 +118,9 @@ fn fallback_monitor() -> ScreenRect {
     if let Ok(s) = std::env::var("QD_MONITOR") {
         // Format "WxH" oder "WxH+x+y".
         if let Some((wh, _rest)) = s.split_once('+') {
-            if let Some((w, h)) = wh.split_once('x') {
-                if let (Ok(w), Ok(h)) = (w.parse::<i32>(), h.parse::<i32>()) {
-                    return ScreenRect {
-                        x: 0,
-                        y: 0,
-                        width: w,
-                        height: h,
-                    };
-                }
-            }
-        } else if let Some((w, h)) = s.split_once('x') {
-            if let (Ok(w), Ok(h)) = (w.parse::<i32>(), h.parse::<i32>()) {
+            if let Some((w, h)) = wh.split_once('x')
+                && let (Ok(w), Ok(h)) = (w.parse::<i32>(), h.parse::<i32>())
+            {
                 return ScreenRect {
                     x: 0,
                     y: 0,
@@ -137,6 +128,15 @@ fn fallback_monitor() -> ScreenRect {
                     height: h,
                 };
             }
+        } else if let Some((w, h)) = s.split_once('x')
+            && let (Ok(w), Ok(h)) = (w.parse::<i32>(), h.parse::<i32>())
+        {
+            return ScreenRect {
+                x: 0,
+                y: 0,
+                width: w,
+                height: h,
+            };
         }
     }
     ScreenRect {

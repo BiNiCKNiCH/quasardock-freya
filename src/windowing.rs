@@ -40,7 +40,7 @@ pub fn read_geometry(platform: &Platform, window_id: WindowId) -> Option<WindowG
 pub fn apply_geometry(platform: &Platform, window_id: WindowId, geom: &WindowGeom) {
     let (x, y, w, h) = (geom.x, geom.y, geom.w, geom.h);
     platform.with_window(window_id, move |win| {
-        let _ = win.set_outer_position(PhysicalPosition::new(x, y));
+        win.set_outer_position(PhysicalPosition::new(x, y));
         let _ = win.request_inner_size(PhysicalSize::new(w as u32, h as u32));
     });
 }

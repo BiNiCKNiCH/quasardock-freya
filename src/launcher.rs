@@ -96,10 +96,10 @@ pub fn launch(req: &LaunchRequest) -> Result<(), LaunchError> {
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    if let Some(cwd) = &req.cwd {
-        if !cwd.trim().is_empty() {
-            cmd.current_dir(cwd);
-        }
+    if let Some(cwd) = &req.cwd
+        && !cwd.trim().is_empty()
+    {
+        cmd.current_dir(cwd);
     }
     #[cfg(windows)]
     {
@@ -265,17 +265,23 @@ mod tests {
 
     #[test]
     fn auto_start_kette_sortiert_nach_verzoegerung() {
-        let mut a = AppEntry::default();
-        a.id = "a".into();
-        a.auto_start = true;
-        a.auto_start_delay_ms = 2000;
-        let mut b = AppEntry::default();
-        b.id = "b".into();
-        b.auto_start = true;
-        b.auto_start_delay_ms = 0;
-        let mut c = AppEntry::default();
-        c.id = "c".into();
-        c.auto_start = false; // nicht in der Kette
+        let a = AppEntry {
+            id: "a".into(),
+            auto_start: true,
+            auto_start_delay_ms: 2000,
+            ..AppEntry::default()
+        };
+        let b = AppEntry {
+            id: "b".into(),
+            auto_start: true,
+            auto_start_delay_ms: 0,
+            ..AppEntry::default()
+        };
+        let c = AppEntry {
+            id: "c".into(),
+            auto_start: false, // nicht in der Kette
+            ..AppEntry::default()
+        };
         let plan = auto_start_plan(&[c, a, b]);
         assert_eq!(plan.len(), 2);
         assert_eq!(plan[0].0.id, "b");
@@ -284,9 +290,11 @@ mod tests {
 
     #[test]
     fn request_from_app_parst_args() {
-        let mut app = AppEntry::default();
-        app.path = "/usr/bin/code".into();
-        app.args = "--new-window \"file.txt\"".into();
+        let app = AppEntry {
+            path: "/usr/bin/code".into(),
+            args: "--new-window \"file.txt\"".into(),
+            ..AppEntry::default()
+        };
         let req = request_from_app(&app);
         assert_eq!(req.args, vec!["--new-window", "file.txt"]);
         assert!(req.cwd.is_none());

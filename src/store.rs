@@ -75,10 +75,10 @@ impl Store {
         let logs_dir = data_dir.join("logs");
 
         // Datenverzeichnis anlegen, sofern möglich.
-        if let Err(e) = fs::create_dir_all(&data_dir) {
-            if e.kind() != io::ErrorKind::AlreadyExists {
-                return Err(StoreError::NotWritable(data_dir));
-            }
+        if let Err(e) = fs::create_dir_all(&data_dir)
+            && e.kind() != io::ErrorKind::AlreadyExists
+        {
+            return Err(StoreError::NotWritable(data_dir));
         }
 
         let config = load_config(&config_path, &data_dir)?;
@@ -177,10 +177,10 @@ fn save_loop(inner: Arc<Mutex<Inner>>, writes: Arc<AtomicU64>, rx: Receiver<()>)
                 Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return,
             }
         }
-        if let Ok(guard) = inner.lock() {
-            if write_atomic(&guard.config_path, &guard.data_dir, &guard.config).is_ok() {
-                writes.fetch_add(1, Ordering::Relaxed);
-            }
+        if let Ok(guard) = inner.lock()
+            && write_atomic(&guard.config_path, &guard.data_dir, &guard.config).is_ok()
+        {
+            writes.fetch_add(1, Ordering::Relaxed);
         }
     }
 }
@@ -523,6 +523,7 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
+    #[allow(clippy::permissions_set_readonly_false)]
     fn nicht_beschreibbarer_pfad_fehler_windows() {
         // Auf Windows verhindert das Read-only-Attribut am *Verzeichnis* das
         // Anlegen neuer Dateien nicht — das atomare Schreiben scheitert aber

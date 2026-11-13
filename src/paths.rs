@@ -7,9 +7,9 @@ use std::path::{Path, PathBuf};
 /// Liefert das Verzeichnis der ausgeführten EXE (das Programmverzeichnis).
 pub fn exe_dir() -> std::io::Result<PathBuf> {
     let exe = std::env::current_exe()?;
-    exe.parent().map(Path::to_path_buf).ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::Other, "EXE hat kein Elternverzeichnis")
-    })
+    exe.parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| std::io::Error::other("EXE hat kein Elternverzeichnis"))
 }
 
 /// Reiner, plattformunabhängiger Hilfswert: zu einem beliebigen EXE-Pfad das

@@ -127,10 +127,10 @@ fn commit(ctx: &AppCtx, f: impl FnOnce(&mut Config)) {
 /// Die App läuft im Tray weiter; Beenden erfolgt nur über das Tray-Menü
 /// (bzw. `platform.exit()` aus dem Tray-Befehl).
 fn close_to_tray(ctx: &AppCtx) {
-    if ctx.config.read().settings.remember_geometry {
-        if let Some(g) = windowing::read_geometry(&Platform::get(), Platform::window_id()) {
-            commit(ctx, |c| c.settings.geometry = Some(g));
-        }
+    if ctx.config.read().settings.remember_geometry
+        && let Some(g) = windowing::read_geometry(&Platform::get(), Platform::window_id())
+    {
+        commit(ctx, |c| c.settings.geometry = Some(g));
     }
     let _ = ctx.store.save_now();
     windowing::set_visible(&Platform::get(), Platform::window_id(), false);
@@ -177,18 +177,21 @@ fn seed_demo(c: &mut Config) {
     ];
     let mut counters: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     for (name, path, fid) in apps {
-        let mut a = AppEntry::default();
         // Stabile Demo-IDs (Name-basiert), damit QD_INIT/DnD-Nachweis einen
         // bekannten app_id referenzieren kann. Neue Apps zur Laufzeit behalten
         // das Zufalls-gen_id (keine Kollision).
-        a.id = format!("app_{}", name.to_lowercase().replace(' ', "_"));
-        a.name = name.to_string();
-        a.path = path.to_string();
-        a.folder_id = fid.to_string();
-        a.sort_order = {
+        let sort_order = {
             let n = counters.entry(fid.to_string()).or_insert(0);
             *n += 1;
             *n
+        };
+        let a = AppEntry {
+            id: format!("app_{}", name.to_lowercase().replace(' ', "_")),
+            name: name.to_string(),
+            path: path.to_string(),
+            folder_id: fid.to_string(),
+            sort_order,
+            ..AppEntry::default()
         };
         c.apps.push(a);
     }
@@ -215,9 +218,7 @@ fn compute_apps(cfg: &Config, cf: &str, query: &str, all: bool) -> Vec<AppEntry>
         .cloned()
         .collect();
     match cfg.settings.sort_mode {
-        SortMode::Alphabetical => {
-            v.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
-        }
+        SortMode::Alphabetical => v.sort_by_key(|a| a.name.to_lowercase()),
         SortMode::Manual => v.sort_by_key(|a| a.sort_order),
     }
     v
@@ -459,10 +460,10 @@ pub fn app() -> impl IntoElement {
                         ctx.settings_tab.set_val(t);
                     }
                 }
-                if let Some(cf) = v.get("current_folder").and_then(|x| x.as_str()) {
-                    if *ctx.current_folder.read() != cf {
-                        ctx.current_folder.set_val(cf.to_string());
-                    }
+                if let Some(cf) = v.get("current_folder").and_then(|x| x.as_str())
+                    && *ctx.current_folder.read() != cf
+                {
+                    ctx.current_folder.set_val(cf.to_string());
                 }
                 if let Some(vm) = v.get("view_mode").and_then(|x| x.as_str()) {
                     let mode = if vm == "list" {
@@ -475,34 +476,34 @@ pub fn app() -> impl IntoElement {
                         ctx.config.set_val(ctx.store.config());
                     }
                 }
-                if let Some(q) = v.get("search").and_then(|x| x.as_str()) {
-                    if ctx.search.read().as_str() != q {
-                        ctx.search.set_val(q.to_string());
-                    }
+                if let Some(q) = v.get("search").and_then(|x| x.as_str())
+                    && ctx.search.read().as_str() != q
+                {
+                    ctx.search.set_val(q.to_string());
                 }
-                if let Some(mv) = v.get("move_app").and_then(|x| x.as_object()) {
-                    if let (Some(app_id), Some(fid)) = (
+                if let Some(mv) = v.get("move_app").and_then(|x| x.as_object())
+                    && let (Some(app_id), Some(fid)) = (
                         mv.get("app_id").and_then(|x| x.as_str()),
                         mv.get("to").and_then(|x| x.as_str()),
-                    ) {
-                        let aid = app_id.to_string();
-                        let fid = fid.to_string();
-                        let already = ctx
-                            .store
-                            .config()
-                            .apps
-                            .iter()
-                            .any(|a| a.id == aid && a.folder_id == fid);
-                        if !already {
-                            ctx.store.update(|c| move_app_to_folder(c, &aid, &fid));
-                            ctx.config.set_val(ctx.store.config());
-                        }
+                    )
+                {
+                    let aid = app_id.to_string();
+                    let fid = fid.to_string();
+                    let already = ctx
+                        .store
+                        .config()
+                        .apps
+                        .iter()
+                        .any(|a| a.id == aid && a.folder_id == fid);
+                    if !already {
+                        ctx.store.update(|c| move_app_to_folder(c, &aid, &fid));
+                        ctx.config.set_val(ctx.store.config());
                     }
                 }
-                if let Some(a) = v.get("accent").and_then(|x| x.as_str()) {
-                    if let Some(c) = design::parse_hex_color(a) {
-                        design::set_accent(c);
-                    }
+                if let Some(a) = v.get("accent").and_then(|x| x.as_str())
+                    && let Some(c) = design::parse_hex_color(a)
+                {
+                    design::set_accent(c);
                 }
             }
             Err(e) => eprintln!("[QD_INIT] parse error: {}", e),
@@ -720,13 +721,7 @@ fn count_badge(text: &str) -> impl IntoElement {
 
 /// Suchfeld (eigenes Textfeld, SPEC §4.4).
 fn search_field(ctx: AppCtx) -> impl IntoElement {
-    text_field(
-        ctx.clone(),
-        1,
-        ctx.search.clone(),
-        "Apps durchsuchen …",
-        240.0,
-    )
+    text_field(ctx.clone(), 1, ctx.search, "Apps durchsuchen …", 240.0)
 }
 
 fn search_scope_button(ctx: AppCtx) -> impl IntoElement {
@@ -787,11 +782,11 @@ fn view_dropdown_button(ctx: AppCtx) -> impl IntoElement {
 fn content(ctx: AppCtx, apps: Vec<AppEntry>, _cf: String) -> impl IntoElement {
     let vm = snap(&ctx.config).settings.view_mode;
     let body: Element = if apps.is_empty() {
-        empty_state(ctx).into()
+        empty_state(ctx)
     } else if vm == ViewMode::Grid {
-        tile_grid(ctx, apps).into()
+        tile_grid(ctx, apps)
     } else {
-        list_view(ctx, apps).into()
+        list_view(ctx, apps)
     };
     rect()
         .width(Size::fill())
@@ -845,8 +840,8 @@ fn tile_grid(ctx: AppCtx, apps: Vec<AppEntry>) -> Element {
             .direction(Direction::Horizontal)
             .spacing(16.0)
             .cross_align(Alignment::Start);
-        for j in idx..end {
-            row = row.child(tile(ctx.clone(), apps[j].clone(), j));
+        for (j, app) in apps.iter().enumerate().skip(idx).take(end - idx) {
+            row = row.child(tile(ctx.clone(), app.clone(), j));
         }
         rows.push(row.into());
         idx = end;
@@ -904,10 +899,10 @@ fn tile(ctx: AppCtx, app: AppEntry, index: usize) -> impl IntoElement {
         })
         .on_pointer_leave(move |_| {
             ctx_l.drag.with_mut_val(|d| {
-                if let DragState::Dragging { target_index, .. } = d {
-                    if *target_index == Some(index) {
-                        *target_index = None;
-                    }
+                if let DragState::Dragging { target_index, .. } = d
+                    && *target_index == Some(index)
+                {
+                    *target_index = None;
                 }
             });
         })
@@ -1039,10 +1034,10 @@ fn list_row(ctx: AppCtx, app: AppEntry, index: usize) -> Element {
         })
         .on_pointer_leave(move |_| {
             ctx_l.drag.with_mut_val(|d| {
-                if let DragState::Dragging { target_index, .. } = d {
-                    if *target_index == Some(index) {
-                        *target_index = None;
-                    }
+                if let DragState::Dragging { target_index, .. } = d
+                    && *target_index == Some(index)
+                {
+                    *target_index = None;
                 }
             });
         })
@@ -1143,7 +1138,6 @@ fn sidebar_top(ctx: AppCtx, cfg: Config, cf: String) -> impl IntoElement {
             rect().direction(Direction::Vertical).spacing(6.0).children(
                 cfg.folders
                     .iter()
-                    .cloned()
                     .map(|f| folder_row(ctx.clone(), f.clone(), count_in(&cfg, &f.id), f.id == cf))
                     .collect::<Vec<Element>>(),
             ),
@@ -1191,10 +1185,10 @@ fn folder_row(ctx: AppCtx, folder: Folder, count: usize, active: bool) -> Elemen
             let f = fid.clone();
             move |_| {
                 ctx_l.drag.with_mut_val(|d| {
-                    if let DragState::Dragging { target_folder, .. } = d {
-                        if target_folder.as_deref() == Some(f.as_str()) {
-                            *target_folder = None;
-                        }
+                    if let DragState::Dragging { target_folder, .. } = d
+                        && target_folder.as_deref() == Some(f.as_str())
+                    {
+                        *target_folder = None;
                     }
                 });
             }
@@ -1217,7 +1211,7 @@ fn folder_row(ctx: AppCtx, folder: Folder, count: usize, active: bool) -> Elemen
             .child(text_field(
                 ctx_r.clone(),
                 90,
-                ctx_r.folder_rename_name.clone(),
+                ctx_r.folder_rename_name,
                 "Name",
                 150.0,
             ))
@@ -1350,7 +1344,7 @@ fn dropdown_menu(ctx: AppCtx) -> impl IntoElement {
         .position(
             Position::new_global()
                 .left(1052.0)
-                .top((TITLEBAR_H + TOOLBAR_H + 6.0) as f32),
+                .top(TITLEBAR_H + TOOLBAR_H + 6.0),
         )
         .width(Size::px(220.0))
         .background(design::CONTROLS)
@@ -1420,6 +1414,7 @@ fn dropdown_menu(ctx: AppCtx) -> impl IntoElement {
     catcher.child(menu)
 }
 
+#[allow(clippy::type_complexity)]
 fn menu_section(title: &str, items: Vec<(&str, bool, Rc<dyn Fn()>)>) -> impl IntoElement {
     let title = title.to_string();
     rect()
@@ -1572,11 +1567,11 @@ fn settings_titlebar(ctx: AppCtx) -> impl IntoElement {
 
 fn settings_body(ctx: AppCtx, cfg: Config, tab: usize) -> Element {
     match tab {
-        0 => tab_ordner(ctx).into(),
-        1 => tab_apps(ctx).into(),
-        2 => tab_allgemein(ctx).into(),
-        3 => tab_darstellung(ctx, cfg).into(),
-        _ => tab_ueber(ctx, cfg).into(),
+        0 => tab_ordner(ctx),
+        1 => tab_apps(ctx),
+        2 => tab_allgemein(ctx),
+        3 => tab_darstellung(ctx, cfg),
+        _ => tab_ueber(ctx, cfg),
     }
 }
 
@@ -1622,7 +1617,7 @@ fn tab_ordner(ctx: AppCtx) -> Element {
                     .child(text_field(
                         ctx2.clone(),
                         80,
-                        ctx2.folder_add_name.clone(),
+                        ctx2.folder_add_name,
                         "Neuer Ordner …",
                         220.0,
                     ))
@@ -1651,7 +1646,6 @@ fn tab_ordner(ctx: AppCtx) -> Element {
                     ),
             ),
     )
-    .into()
 }
 
 fn folder_manage_row(ctx: AppCtx, folder: Folder) -> Element {
@@ -1827,7 +1821,6 @@ fn tab_apps(ctx: AppCtx) -> Element {
                     ),
             ),
     )
-    .into()
 }
 
 fn app_manage_row(ctx: AppCtx, app: AppEntry) -> Element {
@@ -2055,7 +2048,7 @@ fn tab_allgemein(ctx: AppCtx) -> Element {
                     })
                 }),
             )),
-    ).into()
+    )
 }
 
 fn setting_card(title: &str, hint: Option<&str>, control: impl IntoElement) -> impl IntoElement {
@@ -2149,7 +2142,7 @@ fn tab_darstellung(ctx: AppCtx, cfg: Config) -> Element {
             .child(text_field(
                 ctx.clone(),
                 70,
-                ctx.accent_hex.clone(),
+                ctx.accent_hex,
                 "#00B4D8 (eigene Farbe)",
                 220.0,
             ))
@@ -2174,7 +2167,7 @@ fn tab_darstellung(ctx: AppCtx, cfg: Config) -> Element {
                             .color(design::CANVAS),
                     ),
             ),
-    ).into()
+    )
 }
 
 fn tab_ueber(ctx: AppCtx, cfg: Config) -> Element {
@@ -2230,7 +2223,6 @@ fn tab_ueber(ctx: AppCtx, cfg: Config) -> Element {
                     .color(design::POSITIVE),
             ),
     )
-    .into()
 }
 
 // ---------------------------------------------------------------------------
@@ -2280,50 +2272,32 @@ fn app_dialog(ctx: AppCtx) -> impl IntoElement {
                 )
                 .child(field_row(
                     "Name",
-                    text_field(
-                        ctx_d.clone(),
-                        2,
-                        ctx_d.app_dlg_name.clone(),
-                        "Anzeigename",
-                        360.0,
-                    ),
+                    text_field(ctx_d.clone(), 2, ctx_d.app_dlg_name, "Anzeigename", 360.0),
                 ))
                 .child(field_row(
                     "Pfad",
                     text_field(
                         ctx_d.clone(),
                         3,
-                        ctx_d.app_dlg_path.clone(),
+                        ctx_d.app_dlg_path,
                         "/Pfad/zur/Datei",
                         360.0,
                     ),
                 ))
                 .child(field_row(
                     "Argumente",
-                    text_field(
-                        ctx_d.clone(),
-                        4,
-                        ctx_d.app_dlg_args.clone(),
-                        "optional",
-                        360.0,
-                    ),
+                    text_field(ctx_d.clone(), 4, ctx_d.app_dlg_args, "optional", 360.0),
                 ))
                 .child(field_row(
                     "Arbeitsverzeichnis",
-                    text_field(
-                        ctx_d.clone(),
-                        5,
-                        ctx_d.app_dlg_cwd.clone(),
-                        "optional",
-                        360.0,
-                    ),
+                    text_field(ctx_d.clone(), 5, ctx_d.app_dlg_cwd, "optional", 360.0),
                 ))
                 .child(field_row(
                     "Icon",
                     text_field(
                         ctx_d.clone(),
                         6,
-                        ctx_d.app_dlg_icon.clone(),
+                        ctx_d.app_dlg_icon,
                         "optional (.png/.ico)",
                         360.0,
                     ),
@@ -2565,7 +2539,7 @@ fn switch(current: bool, on_toggle: Rc<dyn Fn()>) -> impl IntoElement {
     rect()
         .width(Size::px(w))
         .height(Size::px(h))
-        .corner_radius(h as f32 / 2.0_f32)
+        .corner_radius(h / 2.0_f32)
         .background(if current {
             design::accent()
         } else {
@@ -2583,7 +2557,7 @@ fn switch(current: bool, on_toggle: Rc<dyn Fn()>) -> impl IntoElement {
             rect()
                 .width(Size::px(thumb))
                 .height(Size::px(thumb))
-                .corner_radius(thumb as f32 / 2.0_f32)
+                .corner_radius(thumb / 2.0_f32)
                 .background(design::TEXT_PRIMARY),
         )
 }

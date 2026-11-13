@@ -148,21 +148,12 @@ impl Default for AppEntry {
 /// Ein Ordner (SPEC §4.3 / §5).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
+#[derive(Default)]
 pub struct Folder {
     pub id: String,
     pub name: String,
     /// Geschützte Ordner (z. B. „Favoriten") sind nicht löschbar.
     pub protected: bool,
-}
-
-impl Default for Folder {
-    fn default() -> Self {
-        Self {
-            id: String::new(),
-            name: String::new(),
-            protected: false,
-        }
-    }
 }
 
 /// Wurzel der Konfiguration (SPEC §5): `Config { folders, apps, settings }`.
@@ -274,10 +265,10 @@ impl Config {
 /// Wendet bekannte Migrationen auf den rohen JSON-Wert an, bevor er in
 /// `Config` deserialisiert wird (SPEC §5: „Migrationen älterer Feldnamen").
 fn migrate_value(mut value: serde_json::Value) -> serde_json::Value {
-    if let Some(obj) = value.as_object_mut() {
-        if let Some(settings) = obj.get_mut("settings").and_then(|s| s.as_object_mut()) {
-            migrate_settings(settings);
-        }
+    if let Some(obj) = value.as_object_mut()
+        && let Some(settings) = obj.get_mut("settings").and_then(|s| s.as_object_mut())
+    {
+        migrate_settings(settings);
     }
     value
 }
@@ -297,10 +288,10 @@ fn migrate_settings(settings: &mut serde_json::Map<String, serde_json::Value>) {
         }
     }
     // Noch älter: boolesches `minimized`.
-    if let Some(v) = settings.remove("minimized") {
-        if v.as_bool() == Some(true) {
-            settings.insert("start_in_tray".to_string(), serde_json::Value::Bool(true));
-        }
+    if let Some(v) = settings.remove("minimized")
+        && v.as_bool() == Some(true)
+    {
+        settings.insert("start_in_tray".to_string(), serde_json::Value::Bool(true));
     }
 }
 

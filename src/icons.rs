@@ -179,11 +179,11 @@ fn load_ico(path: &str) -> Option<IconImage> {
     let icon_dir = ico::IconDir::read(&mut file).ok()?;
     let mut entries: Vec<ico::IconDirEntry> = icon_dir.entries().to_vec();
     // Größtes Bild zuerst (meiste Rohdaten).
-    entries.sort_by(|a, b| b.data().len().cmp(&a.data().len()));
+    entries.sort_by_key(|e| std::cmp::Reverse(e.data().len()));
     let best = entries.first()?;
     // `decode` liefert ein `ico::IconImage` mit RGBA (auch bei BMP-codierten Einträgen).
     let img = best.decode().ok()?;
-    png_from_rgba(&img.rgba_data(), img.width(), img.height())
+    png_from_rgba(img.rgba_data(), img.width(), img.height())
 }
 
 fn load_pe_icon(path: &str) -> Option<IconImage> {
@@ -194,7 +194,7 @@ fn load_pe_icon(path: &str) -> Option<IconImage> {
     let dir = ico::IconDir::read(&mut cursor).ok()?;
     let best = dir.entries().iter().max_by_key(|e| e.data().len())?;
     let img = best.decode().ok()?;
-    png_from_rgba(&img.rgba_data(), img.width(), img.height())
+    png_from_rgba(img.rgba_data(), img.width(), img.height())
 }
 
 // ---------------------------------------------------------------------------
@@ -244,12 +244,11 @@ fn extract_pe_icon(file: &[u8]) -> Option<Vec<u8>> {
     // Bilddaten einsammeln.
     let mut images: Vec<Vec<u8>> = Vec::new();
     for ge in &grp.entries {
-        if let Some(data_off) = find_resource_id(file, icon_type_off, rva_to_off, ge.id as u32) {
-            if let Some(leaf) = first_leaf(file, data_off, rva_to_off) {
-                if let Some(bytes) = read_resource_data(file, leaf) {
-                    images.push(bytes);
-                }
-            }
+        if let Some(data_off) = find_resource_id(file, icon_type_off, rva_to_off, ge.id as u32)
+            && let Some(leaf) = first_leaf(file, data_off, rva_to_off)
+            && let Some(bytes) = read_resource_data(file, leaf)
+        {
+            images.push(bytes);
         }
     }
     if images.is_empty() {

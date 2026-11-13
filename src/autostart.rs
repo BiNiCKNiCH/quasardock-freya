@@ -129,10 +129,10 @@ fn windows_set(enabled: bool) -> Result<(), String> {
 
 #[cfg(unix)]
 fn xdg_autostart_dir() -> Option<PathBuf> {
-    if let Ok(x) = std::env::var("XDG_CONFIG_HOME") {
-        if !x.is_empty() {
-            return Some(PathBuf::from(x).join("autostart"));
-        }
+    if let Ok(x) = std::env::var("XDG_CONFIG_HOME")
+        && !x.is_empty()
+    {
+        return Some(PathBuf::from(x).join("autostart"));
     }
     if let Ok(h) = std::env::var("HOME") {
         return Some(PathBuf::from(h).join(".config").join("autostart"));

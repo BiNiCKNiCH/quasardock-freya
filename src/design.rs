@@ -47,11 +47,11 @@ pub fn set_accent(color: Color) {
 
 /// Initialisiert die Laufzeit-Akzent aus einem gespeicherten Hex-Wert (oder Default).
 pub fn init_accent_from(hex: Option<&str>) {
-    if let Some(h) = hex {
-        if let Some(c) = parse_hex_color(h) {
-            set_accent(c);
-            return;
-        }
+    if let Some(h) = hex
+        && let Some(c) = parse_hex_color(h)
+    {
+        set_accent(c);
+        return;
     }
     set_accent(ACCENT);
 }
@@ -214,6 +214,6 @@ mod tests {
     fn fenster_masse_stimmen() {
         assert_eq!((WINDOW_WIDTH, WINDOW_HEIGHT), (1280.0, 800.0));
         assert_eq!((WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT), (900.0, 600.0));
-        assert!(WINDOW_MIN_WIDTH < WINDOW_WIDTH && WINDOW_MIN_HEIGHT < WINDOW_HEIGHT);
+        const { assert!(WINDOW_MIN_WIDTH < WINDOW_WIDTH && WINDOW_MIN_HEIGHT < WINDOW_HEIGHT) };
     }
 }

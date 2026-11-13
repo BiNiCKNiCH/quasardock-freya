@@ -63,18 +63,15 @@ fn spawn_tray_inner(accent: (u8, u8, u8)) -> Option<Receiver<TrayCommand>> {
     // Builder, sondern einen globalen `TrayIconEvent`-Kanal. Wir hören in einem
     // eigenen Thread und leiten die Befehle per mpsc an den Freya-Thread weiter.
     std::thread::spawn(move || {
-        loop {
-            match tray_icon::TrayIconEvent::receiver().recv() {
-                Ok(event) => match event.id().as_ref() {
-                    "toggle" => {
-                        let _ = tx_toggle.send(TrayCommand::Toggle);
-                    }
-                    "quit" => {
-                        let _ = tx_quit.send(TrayCommand::Quit);
-                    }
-                    _ => {}
-                },
-                Err(_) => break,
+        while let Ok(event) = tray_icon::TrayIconEvent::receiver().recv() {
+            match event.id().as_ref() {
+                "toggle" => {
+                    let _ = tx_toggle.send(TrayCommand::Toggle);
+                }
+                "quit" => {
+                    let _ = tx_quit.send(TrayCommand::Quit);
+                }
+                _ => {}
             }
         }
     });
