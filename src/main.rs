@@ -132,8 +132,7 @@ fn main() {
                             monitor,
                             work,
                         );
-                        let _ = window
-                            .set_outer_position(PhysicalPosition::new(r.x as f64, r.y as f64));
+                        window.set_outer_position(PhysicalPosition::new(r.x as f64, r.y as f64));
                     }
                 }),
         ),

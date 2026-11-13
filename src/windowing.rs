@@ -97,7 +97,7 @@ fn monitor_rects_windows(window: &Window) -> (ScreenRect, ScreenRect) {
         }
     }
     // Fallback: primäre Arbeitsfläche via SPI_GETWORKAREA (Taskleiste abgezogen).
-    let work = geometry::spi_work_area().unwrap_or_else(|| ScreenRect {
+    let work = geometry::spi_work_area().unwrap_or(ScreenRect {
         x: 0,
         y: 0,
         width: 1920,
