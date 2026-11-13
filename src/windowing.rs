@@ -67,12 +67,16 @@ pub fn dock_if_near(platform: &Platform, window_id: WindowId) {
         }
     });
     if let Some(d) = out.borrow_mut().take() {
-        apply_geometry(platform, window_id, &WindowGeom {
-            x: d.x,
-            y: d.y,
-            w: d.width,
-            h: d.height,
-        });
+        apply_geometry(
+            platform,
+            window_id,
+            &WindowGeom {
+                x: d.x,
+                y: d.y,
+                w: d.width,
+                h: d.height,
+            },
+        );
     }
 }
 

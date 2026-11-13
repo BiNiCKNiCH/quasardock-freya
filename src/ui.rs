@@ -12,10 +12,10 @@ use quasardock::model::*;
 use quasardock::store::Store;
 use quasardock::{autostart, icons, launcher, windowing};
 
+use serde_json::Value;
+use std::env;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::env;
-use serde_json::Value;
 
 // ---------------------------------------------------------------------------
 // Layout-Konstanten (px, SPEC §3)
@@ -215,7 +215,9 @@ fn compute_apps(cfg: &Config, cf: &str, query: &str, all: bool) -> Vec<AppEntry>
         .cloned()
         .collect();
     match cfg.settings.sort_mode {
-        SortMode::Alphabetical => v.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase())),
+        SortMode::Alphabetical => {
+            v.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+        }
         SortMode::Manual => v.sort_by_key(|a| a.sort_order),
     }
     v
@@ -446,7 +448,9 @@ pub fn app() -> impl IntoElement {
         let init = init.trim();
         match serde_json::from_str::<Value>(init) {
             Ok(v) => {
-                if v.get("settings_open").and_then(|x| x.as_bool()) == Some(true) && !*ctx.settings_open.read() {
+                if v.get("settings_open").and_then(|x| x.as_bool()) == Some(true)
+                    && !*ctx.settings_open.read()
+                {
                     ctx.settings_open.set_val(true);
                 }
                 if let Some(t) = v.get("settings_tab").and_then(|x| x.as_u64()) {
@@ -461,7 +465,11 @@ pub fn app() -> impl IntoElement {
                     }
                 }
                 if let Some(vm) = v.get("view_mode").and_then(|x| x.as_str()) {
-                    let mode = if vm == "list" { ViewMode::List } else { ViewMode::Grid };
+                    let mode = if vm == "list" {
+                        ViewMode::List
+                    } else {
+                        ViewMode::Grid
+                    };
                     if ctx.store.config().settings.view_mode != mode {
                         ctx.store.update(|c| c.settings.view_mode = mode);
                         ctx.config.set_val(ctx.store.config());
@@ -479,7 +487,12 @@ pub fn app() -> impl IntoElement {
                     ) {
                         let aid = app_id.to_string();
                         let fid = fid.to_string();
-                        let already = ctx.store.config().apps.iter().any(|a| a.id == aid && a.folder_id == fid);
+                        let already = ctx
+                            .store
+                            .config()
+                            .apps
+                            .iter()
+                            .any(|a| a.id == aid && a.folder_id == fid);
                         if !already {
                             ctx.store.update(|c| move_app_to_folder(c, &aid, &fid));
                             ctx.config.set_val(ctx.store.config());
@@ -707,7 +720,13 @@ fn count_badge(text: &str) -> impl IntoElement {
 
 /// Suchfeld (eigenes Textfeld, SPEC §4.4).
 fn search_field(ctx: AppCtx) -> impl IntoElement {
-    text_field(ctx.clone(), 1, ctx.search.clone(), "Apps durchsuchen …", 240.0)
+    text_field(
+        ctx.clone(),
+        1,
+        ctx.search.clone(),
+        "Apps durchsuchen …",
+        240.0,
+    )
 }
 
 fn search_scope_button(ctx: AppCtx) -> impl IntoElement {
@@ -716,7 +735,11 @@ fn search_scope_button(ctx: AppCtx) -> impl IntoElement {
     rect()
         .height(Size::px(34.0))
         .corner_radius(design::RADIUS_SMALL)
-        .background(if all { design::accent() } else { design::CANVAS })
+        .background(if all {
+            design::accent()
+        } else {
+            design::CANVAS
+        })
         .border(Border::new().fill(design::BORDER).width(1.0))
         .padding(Gaps::new(0.0, 10.0, 0.0, 10.0))
         .cross_align(Alignment::Center)
@@ -807,7 +830,8 @@ fn empty_state(ctx: AppCtx) -> Element {
                         .font_size(design::FONT_BODY)
                         .color(design::CANVAS),
                 ),
-        ).into()
+        )
+        .into()
 }
 
 fn tile_grid(ctx: AppCtx, apps: Vec<AppEntry>) -> Element {
@@ -833,7 +857,8 @@ fn tile_grid(ctx: AppCtx, apps: Vec<AppEntry>) -> Element {
         .direction(Direction::Vertical)
         .spacing(16.0)
         .padding(Gaps::new_all(20.0))
-        .child(rect().direction(Direction::Vertical).children(rows)).into()
+        .child(rect().direction(Direction::Vertical).children(rows))
+        .into()
 }
 
 fn tile(ctx: AppCtx, app: AppEntry, index: usize) -> impl IntoElement {
@@ -905,7 +930,11 @@ fn tile_visual(app: Option<AppEntry>, ghost: bool) -> impl IntoElement {
     } else {
         design::CONTROLS
     };
-    let border = if ghost { design::accent() } else { design::BORDER };
+    let border = if ghost {
+        design::accent()
+    } else {
+        design::BORDER
+    };
     rect()
         .width(Size::px(TILE))
         .height(Size::px(TILE))
@@ -949,12 +978,12 @@ fn list_view(ctx: AppCtx, apps: Vec<AppEntry>) -> Element {
         .spacing(8.0)
         .padding(Gaps::new_all(20.0))
         .children(
-            apps
-                .into_iter()
+            apps.into_iter()
                 .enumerate()
                 .map(|(i, app)| list_row(ctx.clone(), app, i))
                 .collect::<Vec<Element>>(),
-        ).into()
+        )
+        .into()
 }
 
 fn list_row(ctx: AppCtx, app: AppEntry, index: usize) -> Element {
@@ -1045,10 +1074,7 @@ fn list_row(ctx: AppCtx, app: AppEntry, index: usize) -> Element {
 /// Ghost (folgt dem Cursor), nur während eines Drag.
 fn ghost_tile(ctx: AppCtx) -> Option<impl IntoElement> {
     if let DragState::Dragging {
-        app_id,
-        pos,
-        grab,
-        ..
+        app_id, pos, grab, ..
     } = snap(&ctx.drag)
     {
         let cfg = snap(&ctx.config);
@@ -1114,14 +1140,13 @@ fn sidebar_top(ctx: AppCtx, cfg: Config, cf: String) -> impl IntoElement {
                 ),
         )
         .child(
-            rect()
-                .direction(Direction::Vertical)
-                .spacing(6.0)
-                .children(
-                    cfg.folders.iter().cloned()
-                        .map(|f| folder_row(ctx.clone(), f.clone(), count_in(&cfg, &f.id), f.id == cf))
-                        .collect::<Vec<Element>>(),
-                ),
+            rect().direction(Direction::Vertical).spacing(6.0).children(
+                cfg.folders
+                    .iter()
+                    .cloned()
+                    .map(|f| folder_row(ctx.clone(), f.clone(), count_in(&cfg, &f.id), f.id == cf))
+                    .collect::<Vec<Element>>(),
+            ),
         )
 }
 
@@ -1137,7 +1162,11 @@ fn folder_row(ctx: AppCtx, folder: Folder, count: usize, active: bool) -> Elemen
         .width(Size::fill())
         .height(Size::px(40.0))
         .corner_radius(design::RADIUS_SMALL)
-        .background(if active { design::HOVER } else { design::CONTROLS })
+        .background(if active {
+            design::HOVER
+        } else {
+            design::CONTROLS
+        })
         .direction(Direction::Horizontal)
         .cross_align(Alignment::Center)
         .main_align(Alignment::SpaceBetween)
@@ -1272,7 +1301,9 @@ fn sidebar_bottom(ctx: AppCtx) -> impl IntoElement {
             };
             ctx_a.current_folder.set_val(id);
         }))
-        .child(round_button("⚙", move |_| ctx_s.settings_open.set_val(true)))
+        .child(round_button("⚙", move |_| {
+            ctx_s.settings_open.set_val(true)
+        }))
 }
 
 fn round_button(glyph: &str, on_press: impl Fn(()) + 'static) -> impl IntoElement {
@@ -1316,7 +1347,11 @@ fn dropdown_menu(ctx: AppCtx) -> impl IntoElement {
     let ctx_sm = ctx.clone();
 
     let menu = rect()
-        .position(Position::new_global().left(1052.0).top((TITLEBAR_H + TOOLBAR_H + 6.0) as f32))
+        .position(
+            Position::new_global()
+                .left(1052.0)
+                .top((TITLEBAR_H + TOOLBAR_H + 6.0) as f32),
+        )
         .width(Size::px(220.0))
         .background(design::CONTROLS)
         .corner_radius(design::RADIUS_SMALL)
@@ -1397,43 +1432,40 @@ fn menu_section(title: &str, items: Vec<(&str, bool, Rc<dyn Fn()>)>) -> impl Int
                 .color(design::TEXT_MUTED),
         )
         .child(
-            rect()
-                .direction(Direction::Vertical)
-                .spacing(2.0)
-                .children(
-                    items
-                        .into_iter()
-                        .map(|(lbl, selected, action)| {
-                            let action = action.clone();
-                            rect()
-                                .height(Size::px(30.0))
-                                .corner_radius(design::RADIUS_SMALL)
-                                .background(if selected {
-                                    design::HOVER
-                                } else {
-                                    design::CONTROLS
-                                })
-                                .padding(Gaps::new(0.0, 8.0, 0.0, 8.0))
-                                .cross_align(Alignment::Center)
-                                .on_press(move |_| action())
-                                .child(
-                                    label()
-                                        .text(if selected {
-                                            format!("✓ {}", lbl)
-                                        } else {
-                                            lbl.to_string()
-                                        })
-                                        .font_size(design::FONT_BODY)
-                                        .color(if selected {
-                                            design::accent()
-                                        } else {
-                                            design::TEXT_SECONDARY
-                                        }),
-                                )
-                                .into()
-                        })
-                        .collect::<Vec<Element>>(),
-                ),
+            rect().direction(Direction::Vertical).spacing(2.0).children(
+                items
+                    .into_iter()
+                    .map(|(lbl, selected, action)| {
+                        let action = action.clone();
+                        rect()
+                            .height(Size::px(30.0))
+                            .corner_radius(design::RADIUS_SMALL)
+                            .background(if selected {
+                                design::HOVER
+                            } else {
+                                design::CONTROLS
+                            })
+                            .padding(Gaps::new(0.0, 8.0, 0.0, 8.0))
+                            .cross_align(Alignment::Center)
+                            .on_press(move |_| action())
+                            .child(
+                                label()
+                                    .text(if selected {
+                                        format!("✓ {}", lbl)
+                                    } else {
+                                        lbl.to_string()
+                                    })
+                                    .font_size(design::FONT_BODY)
+                                    .color(if selected {
+                                        design::accent()
+                                    } else {
+                                        design::TEXT_SECONDARY
+                                    }),
+                            )
+                            .into()
+                    })
+                    .collect::<Vec<Element>>(),
+            ),
         )
 }
 
@@ -1554,7 +1586,8 @@ fn settings_scroll(content: impl IntoElement) -> Element {
         .height(Size::fill())
         .direction(Direction::Vertical)
         .padding(Gaps::new_all(16.0))
-        .child(content).into()
+        .child(content)
+        .into()
 }
 
 fn tab_ordner(ctx: AppCtx) -> Element {
@@ -1573,14 +1606,13 @@ fn tab_ordner(ctx: AppCtx) -> Element {
                     .color(design::TEXT_PRIMARY),
             )
             .child(
-                rect()
-                    .direction(Direction::Vertical)
-                    .spacing(6.0)
-                    .children(
-                        cfg.folders.iter().cloned()
-                            .map(|f| folder_manage_row(ctx.clone(), f))
-                            .collect::<Vec<Element>>(),
-                    ),
+                rect().direction(Direction::Vertical).spacing(6.0).children(
+                    cfg.folders
+                        .iter()
+                        .cloned()
+                        .map(|f| folder_manage_row(ctx.clone(), f))
+                        .collect::<Vec<Element>>(),
+                ),
             )
             .child(
                 rect()
@@ -1618,7 +1650,8 @@ fn tab_ordner(ctx: AppCtx) -> Element {
                             ),
                     ),
             ),
-    ).into()
+    )
+    .into()
 }
 
 fn folder_manage_row(ctx: AppCtx, folder: Folder) -> Element {
@@ -1720,50 +1753,50 @@ fn tab_apps(ctx: AppCtx) -> Element {
     let cf = snap(&ctx.current_folder);
     let ctx2 = ctx.clone();
     let ctx3 = ctx.clone();
-    let folder_selector = rect()
-        .direction(Direction::Horizontal)
-        .cross_align(Alignment::Center)
-        .spacing(6.0)
-        .children(
-            cfg.folders.iter().cloned()
-                .map(|f| {
-                    let sel = f.id == cf;
-                    let ctx3 = ctx3.clone();
-                    let fid = f.id.clone();
-                    rect()
-                        .height(Size::px(30.0))
-                        .corner_radius(design::RADIUS_SMALL)
-                        .background(if sel { design::accent() } else { design::CANVAS })
-                        .border(Border::new().fill(design::BORDER).width(1.0))
-                        .padding(Gaps::new(0.0, 12.0, 0.0, 12.0))
-                        .cross_align(Alignment::Center)
-                        .main_align(Alignment::Center)
-                        .on_press(move |_| ctx3.current_folder.set_val(fid.clone()))
-                        .child(
-                            label()
-                                .text(f.name)
-                                .font_size(design::FONT_META)
-                                .color(if sel {
+    let folder_selector =
+        rect()
+            .direction(Direction::Horizontal)
+            .cross_align(Alignment::Center)
+            .spacing(6.0)
+            .children(
+                cfg.folders
+                    .iter()
+                    .cloned()
+                    .map(|f| {
+                        let sel = f.id == cf;
+                        let ctx3 = ctx3.clone();
+                        let fid = f.id.clone();
+                        rect()
+                            .height(Size::px(30.0))
+                            .corner_radius(design::RADIUS_SMALL)
+                            .background(if sel {
+                                design::accent()
+                            } else {
+                                design::CANVAS
+                            })
+                            .border(Border::new().fill(design::BORDER).width(1.0))
+                            .padding(Gaps::new(0.0, 12.0, 0.0, 12.0))
+                            .cross_align(Alignment::Center)
+                            .main_align(Alignment::Center)
+                            .on_press(move |_| ctx3.current_folder.set_val(fid.clone()))
+                            .child(label().text(f.name).font_size(design::FONT_META).color(
+                                if sel {
                                     design::CANVAS
                                 } else {
                                     design::TEXT_SECONDARY
-                                }),
-                        )
-                        .into()
-                })
-                .collect::<Vec<Element>>(),
-        );
+                                },
+                            ))
+                            .into()
+                    })
+                    .collect::<Vec<Element>>(),
+            );
 
     let apps = compute_apps(&cfg, &cf, "", false);
-    let list = rect()
-        .direction(Direction::Vertical)
-        .spacing(6.0)
-        .children(
-            apps
-                .into_iter()
-                .map(|a| app_manage_row(ctx2.clone(), a))
-                .collect::<Vec<Element>>(),
-        );
+    let list = rect().direction(Direction::Vertical).spacing(6.0).children(
+        apps.into_iter()
+            .map(|a| app_manage_row(ctx2.clone(), a))
+            .collect::<Vec<Element>>(),
+    );
 
     settings_scroll(
         rect()
@@ -1793,7 +1826,8 @@ fn tab_apps(ctx: AppCtx) -> Element {
                             .color(design::CANVAS),
                     ),
             ),
-    ).into()
+    )
+    .into()
 }
 
 fn app_manage_row(ctx: AppCtx, app: AppEntry) -> Element {
@@ -2058,8 +2092,7 @@ fn tab_darstellung(ctx: AppCtx, cfg: Config) -> Element {
     let current = cfg.settings.accent_color.clone();
     let ctx = ctx.clone();
     let presets = [
-        "#00B4D8", "#00E5FF", "#3B82F6", "#8B5CF6", "#EC4899", "#EF4444", "#F59E0B",
-        "#22C55E",
+        "#00B4D8", "#00E5FF", "#3B82F6", "#8B5CF6", "#EC4899", "#EF4444", "#F59E0B", "#22C55E",
     ];
     settings_scroll(
         rect()
@@ -2166,7 +2199,11 @@ fn tab_ueber(ctx: AppCtx, cfg: Config) -> Element {
             )
             .child(
                 label()
-                    .text(format!("Ordner: {}   Apps: {}", cfg.folders.len(), cfg.apps.len()))
+                    .text(format!(
+                        "Ordner: {}   Apps: {}",
+                        cfg.folders.len(),
+                        cfg.apps.len()
+                    ))
                     .font_size(design::FONT_META)
                     .color(design::TEXT_MUTED),
             )
@@ -2192,7 +2229,8 @@ fn tab_ueber(ctx: AppCtx, cfg: Config) -> Element {
                     .font_size(design::FONT_META)
                     .color(design::POSITIVE),
             ),
-    ).into()
+    )
+    .into()
 }
 
 // ---------------------------------------------------------------------------
@@ -2213,7 +2251,10 @@ fn app_dialog(ctx: AppCtx) -> impl IntoElement {
         .cross_align(Alignment::Center)
         .background(Color::from_argb(140, 0, 0, 0))
         .layer(Layer::Overlay)
-        .on_press({ let c = ctx_c.clone(); move |_| close_app_dialog(&c.clone()) })
+        .on_press({
+            let c = ctx_c.clone();
+            move |_| close_app_dialog(&c.clone())
+        })
         .child(
             rect()
                 .position(Position::new_global().left(360.0).top(120.0))
@@ -2239,23 +2280,53 @@ fn app_dialog(ctx: AppCtx) -> impl IntoElement {
                 )
                 .child(field_row(
                     "Name",
-                    text_field(ctx_d.clone(), 2, ctx_d.app_dlg_name.clone(), "Anzeigename", 360.0),
+                    text_field(
+                        ctx_d.clone(),
+                        2,
+                        ctx_d.app_dlg_name.clone(),
+                        "Anzeigename",
+                        360.0,
+                    ),
                 ))
                 .child(field_row(
                     "Pfad",
-                    text_field(ctx_d.clone(), 3, ctx_d.app_dlg_path.clone(), "/Pfad/zur/Datei", 360.0),
+                    text_field(
+                        ctx_d.clone(),
+                        3,
+                        ctx_d.app_dlg_path.clone(),
+                        "/Pfad/zur/Datei",
+                        360.0,
+                    ),
                 ))
                 .child(field_row(
                     "Argumente",
-                    text_field(ctx_d.clone(), 4, ctx_d.app_dlg_args.clone(), "optional", 360.0),
+                    text_field(
+                        ctx_d.clone(),
+                        4,
+                        ctx_d.app_dlg_args.clone(),
+                        "optional",
+                        360.0,
+                    ),
                 ))
                 .child(field_row(
                     "Arbeitsverzeichnis",
-                    text_field(ctx_d.clone(), 5, ctx_d.app_dlg_cwd.clone(), "optional", 360.0),
+                    text_field(
+                        ctx_d.clone(),
+                        5,
+                        ctx_d.app_dlg_cwd.clone(),
+                        "optional",
+                        360.0,
+                    ),
                 ))
                 .child(field_row(
                     "Icon",
-                    text_field(ctx_d.clone(), 6, ctx_d.app_dlg_icon.clone(), "optional (.png/.ico)", 360.0),
+                    text_field(
+                        ctx_d.clone(),
+                        6,
+                        ctx_d.app_dlg_icon.clone(),
+                        "optional (.png/.ico)",
+                        360.0,
+                    ),
                 ))
                 .child(folder_select(ctx_d.clone()))
                 .child(startstate_select(ctx_d.clone()))
@@ -2289,7 +2360,10 @@ fn app_dialog(ctx: AppCtx) -> impl IntoElement {
                                 .padding(Gaps::new(0.0, 14.0, 0.0, 14.0))
                                 .cross_align(Alignment::Center)
                                 .main_align(Alignment::Center)
-                                .on_press({ let c = ctx_c.clone(); move |_| save_app_dialog(&c.clone()) })
+                                .on_press({
+                                    let c = ctx_c.clone();
+                                    move |_| save_app_dialog(&c.clone())
+                                })
                                 .child(
                                     label()
                                         .text("Speichern")
@@ -2307,14 +2381,12 @@ fn field_row(label_text: &str, input: impl IntoElement) -> impl IntoElement {
         .cross_align(Alignment::Center)
         .spacing(12.0)
         .child(
-            rect()
-                .width(Size::px(140.0))
-                .child(
-                    label()
-                        .text(label_text.to_string())
-                        .font_size(design::FONT_BODY)
-                        .color(design::TEXT_SECONDARY),
-                ),
+            rect().width(Size::px(140.0)).child(
+                label()
+                    .text(label_text.to_string())
+                    .font_size(design::FONT_BODY)
+                    .color(design::TEXT_SECONDARY),
+            ),
         )
         .child(input)
 }
@@ -2327,14 +2399,12 @@ fn folder_select(ctx: AppCtx) -> impl IntoElement {
         .cross_align(Alignment::Center)
         .spacing(12.0)
         .child(
-            rect()
-                .width(Size::px(140.0))
-                .child(
-                    label()
-                        .text("Ordner")
-                        .font_size(design::FONT_BODY)
-                        .color(design::TEXT_SECONDARY),
-                ),
+            rect().width(Size::px(140.0)).child(
+                label()
+                    .text("Ordner")
+                    .font_size(design::FONT_BODY)
+                    .color(design::TEXT_SECONDARY),
+            ),
         )
         .child(
             rect()
@@ -2342,7 +2412,9 @@ fn folder_select(ctx: AppCtx) -> impl IntoElement {
                 .cross_align(Alignment::Center)
                 .spacing(6.0)
                 .children(
-                    cfg.folders.iter().cloned()
+                    cfg.folders
+                        .iter()
+                        .cloned()
                         .map(|f| {
                             let sel = f.id == cf;
                             let ctx = ctx.clone();
@@ -2350,22 +2422,23 @@ fn folder_select(ctx: AppCtx) -> impl IntoElement {
                             rect()
                                 .height(Size::px(30.0))
                                 .corner_radius(design::RADIUS_SMALL)
-                                .background(if sel { design::accent() } else { design::CANVAS })
+                                .background(if sel {
+                                    design::accent()
+                                } else {
+                                    design::CANVAS
+                                })
                                 .border(Border::new().fill(design::BORDER).width(1.0))
                                 .padding(Gaps::new(0.0, 10.0, 0.0, 10.0))
                                 .cross_align(Alignment::Center)
                                 .main_align(Alignment::Center)
                                 .on_press(move |_| ctx.app_dlg_folder.set_val(fid.clone()))
-                                .child(
-                                    label()
-                                        .text(f.name)
-                                        .font_size(design::FONT_META)
-                                        .color(if sel {
-                                            design::CANVAS
-                                        } else {
-                                            design::TEXT_SECONDARY
-                                        }),
-                                )
+                                .child(label().text(f.name).font_size(design::FONT_META).color(
+                                    if sel {
+                                        design::CANVAS
+                                    } else {
+                                        design::TEXT_SECONDARY
+                                    },
+                                ))
                                 .into()
                         })
                         .collect::<Vec<Element>>(),
@@ -2380,14 +2453,12 @@ fn startstate_select(ctx: AppCtx) -> impl IntoElement {
         .cross_align(Alignment::Center)
         .spacing(12.0)
         .child(
-            rect()
-                .width(Size::px(140.0))
-                .child(
-                    label()
-                        .text("Startzustand")
-                        .font_size(design::FONT_BODY)
-                        .color(design::TEXT_SECONDARY),
-                ),
+            rect().width(Size::px(140.0)).child(
+                label()
+                    .text("Startzustand")
+                    .font_size(design::FONT_BODY)
+                    .color(design::TEXT_SECONDARY),
+            ),
         )
         .child(segmented(
             &["Normal", "Minimiert", "Maximiert"],
@@ -2403,14 +2474,12 @@ fn auto_start_row(ctx: AppCtx) -> impl IntoElement {
         .cross_align(Alignment::Center)
         .spacing(12.0)
         .child(
-            rect()
-                .width(Size::px(140.0))
-                .child(
-                    label()
-                        .text("Auto-Start")
-                        .font_size(design::FONT_BODY)
-                        .color(design::TEXT_SECONDARY),
-                ),
+            rect().width(Size::px(140.0)).child(
+                label()
+                    .text("Auto-Start")
+                    .font_size(design::FONT_BODY)
+                    .color(design::TEXT_SECONDARY),
+            ),
         )
         .child(switch(on, Rc::new(move || ctx.app_dlg_auto.set_val(!on))))
 }
@@ -2447,7 +2516,11 @@ fn text_field(
         .width(Size::px(width))
         .height(Size::px(34.0))
         .corner_radius(design::RADIUS_SMALL)
-        .background(if focused { design::HOVER } else { design::CANVAS })
+        .background(if focused {
+            design::HOVER
+        } else {
+            design::CANVAS
+        })
         .border(
             Border::new()
                 .fill(if focused {
@@ -2493,11 +2566,19 @@ fn switch(current: bool, on_toggle: Rc<dyn Fn()>) -> impl IntoElement {
         .width(Size::px(w))
         .height(Size::px(h))
         .corner_radius(h as f32 / 2.0_f32)
-        .background(if current { design::accent() } else { design::HOVER })
+        .background(if current {
+            design::accent()
+        } else {
+            design::HOVER
+        })
         .on_press(move |_| on_toggle())
         .padding(Gaps::new_all(2.0))
         .direction(Direction::Horizontal)
-        .main_align(if current { Alignment::End } else { Alignment::Start })
+        .main_align(if current {
+            Alignment::End
+        } else {
+            Alignment::Start
+        })
         .child(
             rect()
                 .width(Size::px(thumb))
@@ -2508,7 +2589,11 @@ fn switch(current: bool, on_toggle: Rc<dyn Fn()>) -> impl IntoElement {
 }
 
 /// Segmente (z. B. Kacheln/Liste), SPEC §3.
-fn segmented(options: &'static [&'static str], selected: usize, on_select: Rc<dyn Fn(usize)>) -> impl IntoElement {
+fn segmented(
+    options: &'static [&'static str],
+    selected: usize,
+    on_select: Rc<dyn Fn(usize)>,
+) -> impl IntoElement {
     let mut row = rect()
         .direction(Direction::Horizontal)
         .spacing(6.0)
@@ -2520,10 +2605,18 @@ fn segmented(options: &'static [&'static str], selected: usize, on_select: Rc<dy
             .height(Size::px(30.0))
             .min_width(Size::px(72.0))
             .corner_radius(design::RADIUS_SMALL)
-            .background(if sel { design::accent() } else { design::CANVAS })
+            .background(if sel {
+                design::accent()
+            } else {
+                design::CANVAS
+            })
             .border(
                 Border::new()
-                    .fill(if sel { design::accent() } else { design::BORDER })
+                    .fill(if sel {
+                        design::accent()
+                    } else {
+                        design::BORDER
+                    })
                     .width(1.0),
             )
             .cross_align(Alignment::Center)

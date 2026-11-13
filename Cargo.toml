@@ -13,8 +13,8 @@ serde_json = "1"
 image = { version = "0.25", default-features = false, features = ["png", "ico", "bmp"] }
 # ICO-Mehrbild-Extraktion (größtes Bild wählen).
 ico = "0.4"
-# Async-Timer für die Tray-Befehls-Schleife (von Freya ohnehin transitiv genutzt).
-tokio = { version = "1", features = ["rt", "time", "macros"] }
+# Async-Laufzeit kommt transitiv über Freya (tokio) — keine Direkt-Abhängigkeit nötig.
+
 # Winit (Transitiv über Freya) direkt referenzierbar machen, damit Fenster-Geometrie
 # (Position/Größe) und Windows-spezifische Ext rasch nutzbar sind.
 winit = "0.30"

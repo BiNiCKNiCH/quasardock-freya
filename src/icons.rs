@@ -92,7 +92,12 @@ pub fn get_app_icon(icon_path: &str, logs_dir: &Path) -> Option<IconImage> {
             "ok",
             Some(&format!("{}x{}", img.width, img.height)),
         ),
-        None => log_icon_event(logs_dir, icon_path, "fallback", Some("decode fehlgeschlagen")),
+        None => log_icon_event(
+            logs_dir,
+            icon_path,
+            "fallback",
+            Some("decode fehlgeschlagen"),
+        ),
     }
     result
 }
@@ -223,9 +228,8 @@ fn extract_pe_icon(file: &[u8]) -> Option<Vec<u8>> {
         return None;
     }
     let section_base = opt_hdr + opt_hdr_size;
-    let rva_to_off = |rva: u32| -> Option<usize> {
-        rva_to_file_offset(file, section_base, num_sections, rva)
-    };
+    let rva_to_off =
+        |rva: u32| -> Option<usize> { rva_to_file_offset(file, section_base, num_sections, rva) };
     let res_off = rva_to_off(res_rva)?;
 
     // RT_GROUP_ICON (Typ 14) finden.
@@ -394,7 +398,12 @@ fn read_dir_counts(file: &[u8], dir_off: usize) -> Option<(usize, usize)> {
 }
 
 /// RVA -> Datei-Offset mittels Sektionstabelle.
-fn rva_to_file_offset(file: &[u8], section_base: usize, num_sections: usize, rva: u32) -> Option<usize> {
+fn rva_to_file_offset(
+    file: &[u8],
+    section_base: usize,
+    num_sections: usize,
+    rva: u32,
+) -> Option<usize> {
     rva_to_file_offset_impl(file, section_base, num_sections, rva)
 }
 
@@ -408,7 +417,12 @@ fn rva_to_file_offset_global(file: &[u8], rva: u32) -> Option<usize> {
     rva_to_file_offset_impl(file, section_base, num_sections, rva)
 }
 
-fn rva_to_file_offset_impl(file: &[u8], section_base: usize, num_sections: usize, rva: u32) -> Option<usize> {
+fn rva_to_file_offset_impl(
+    file: &[u8],
+    section_base: usize,
+    num_sections: usize,
+    rva: u32,
+) -> Option<usize> {
     let mut s = section_base;
     for _ in 0..num_sections {
         if s + 40 > file.len() {
@@ -498,7 +512,10 @@ mod tests {
         assert!(res.is_none(), "Fehlende Quelle -> None");
         let log = fs::read_to_string(logs.join("icons.txt")).unwrap();
         assert!(log.contains("result=fallback"), "Log: {}", log);
-        assert!(log.contains("C:\\nicht\\vorhanden.ico"), "Pfad muss im Log stehen");
+        assert!(
+            log.contains("C:\\nicht\\vorhanden.ico"),
+            "Pfad muss im Log stehen"
+        );
         let _ = fs::remove_dir_all(&logs);
     }
 

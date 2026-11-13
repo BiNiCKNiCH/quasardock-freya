@@ -1,6 +1,0 @@
-# Linux-Build auf dieser Box: native Grafik-Libs (EGL/GL/GLESv2/wayland-egl)
-# stehen im Tauri-Sysroot, nicht im System-/usr/lib. Ohne diesen Suchpfad
-# schlägt das Linken von Freya (skia/EGL) mit "unable to find library -lEGL" fehl.
-# Gilt nur für das Linux-Target; der Windows-Check ist unberührt.
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-L", "/home/tars/workspace/tools/tauri-sysroot/usr/lib/x86_64-linux-gnu"]

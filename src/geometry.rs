@@ -39,14 +39,24 @@ pub fn taskbar_height(work_area: ScreenRect, monitor: ScreenRect) -> i32 {
 
 /// Liegt die rechte Kante des Fensters innerhalb `threshold` Pixel am rechten
 /// Monitorrand? Dann soll angedockt werden.
-pub fn is_near_right_edge(window_x: i32, window_w: i32, monitor_right: i32, threshold: i32) -> bool {
+pub fn is_near_right_edge(
+    window_x: i32,
+    window_w: i32,
+    monitor_right: i32,
+    threshold: i32,
+) -> bool {
     (monitor_right - (window_x + window_w)).abs() <= threshold
 }
 
 /// Berechnet die angedockte Geometrie: bündig am rechten Monitorrand und
 /// bündig an der Oberkante der Taskleiste (Fensterunterkante = Taskleisten-
 /// oberkante).
-pub fn dock_rect(window_w: i32, window_h: i32, monitor: ScreenRect, work_area: ScreenRect) -> ScreenRect {
+pub fn dock_rect(
+    window_w: i32,
+    window_h: i32,
+    monitor: ScreenRect,
+    work_area: ScreenRect,
+) -> ScreenRect {
     let taskbar = taskbar_height(work_area, monitor);
     let monitor_right = monitor.right();
     let x = monitor_right - window_w;
@@ -64,7 +74,12 @@ pub fn dock_rect(window_w: i32, window_h: i32, monitor: ScreenRect, work_area: S
 
 /// Hochwertige Andock-Entscheidung: nur wenn das Fenster nahe der rechten Kante
 /// ist, wird die angedockte Geometrie zurückgegeben, sonst die übergebene.
-pub fn maybe_dock(window: ScreenRect, monitor: ScreenRect, work_area: ScreenRect, threshold: i32) -> ScreenRect {
+pub fn maybe_dock(
+    window: ScreenRect,
+    monitor: ScreenRect,
+    work_area: ScreenRect,
+    threshold: i32,
+) -> ScreenRect {
     if is_near_right_edge(window.x, window.width, monitor.right(), threshold) {
         dock_rect(window.width, window.height, monitor, work_area)
     } else {
@@ -105,32 +120,41 @@ fn fallback_monitor() -> ScreenRect {
         if let Some((wh, _rest)) = s.split_once('+') {
             if let Some((w, h)) = wh.split_once('x') {
                 if let (Ok(w), Ok(h)) = (w.parse::<i32>(), h.parse::<i32>()) {
-                    return ScreenRect { x: 0, y: 0, width: w, height: h };
+                    return ScreenRect {
+                        x: 0,
+                        y: 0,
+                        width: w,
+                        height: h,
+                    };
                 }
             }
         } else if let Some((w, h)) = s.split_once('x') {
             if let (Ok(w), Ok(h)) = (w.parse::<i32>(), h.parse::<i32>()) {
-                return ScreenRect { x: 0, y: 0, width: w, height: h };
+                return ScreenRect {
+                    x: 0,
+                    y: 0,
+                    width: w,
+                    height: h,
+                };
             }
         }
     }
-    ScreenRect { x: 0, y: 0, width: 1280, height: 800 }
+    ScreenRect {
+        x: 0,
+        y: 0,
+        width: 1280,
+        height: 800,
+    }
 }
 
 #[cfg(windows)]
 fn spi_work_area() -> Option<ScreenRect> {
     use std::os::raw::c_void;
     use windows_sys::Win32::Foundation::RECT;
-    use windows_sys::Win32::UI::WindowsAndMessaging::{SystemParametersInfoW, SPI_GETWORKAREA};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{SPI_GETWORKAREA, SystemParametersInfoW};
     unsafe {
         let mut rect: RECT = std::mem::zeroed();
-        if SystemParametersInfoW(
-            SPI_GETWORKAREA,
-            0,
-            &mut rect as *mut _ as *mut c_void,
-            0,
-        ) != 0
-        {
+        if SystemParametersInfoW(SPI_GETWORKAREA, 0, &mut rect as *mut _ as *mut c_void, 0) != 0 {
             Some(ScreenRect {
                 x: rect.left,
                 y: rect.top,
@@ -163,8 +187,18 @@ mod tests {
 
     #[test]
     fn taskbar_hoehe_aus_differenz() {
-        let monitor = ScreenRect { x: 0, y: 0, width: 1920, height: 1080 };
-        let work = ScreenRect { x: 0, y: 0, width: 1920, height: 1040 };
+        let monitor = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let work = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1040,
+        };
         assert_eq!(taskbar_height(work, monitor), 40);
         // Keine Taskleiste -> 0.
         assert_eq!(taskbar_height(monitor, monitor), 0);
@@ -172,8 +206,18 @@ mod tests {
 
     #[test]
     fn dock_rechts_und_oberkante_taskleiste() {
-        let monitor = ScreenRect { x: 0, y: 0, width: 1920, height: 1080 };
-        let work = ScreenRect { x: 0, y: 0, width: 1920, height: 1040 }; // Taskleiste 40 px unten
+        let monitor = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let work = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1040,
+        }; // Taskleiste 40 px unten
         let r = dock_rect(300, 600, monitor, work);
         assert_eq!(r.x, 1920 - 300, "bündig am rechten Rand");
         // Fensterunterkante = Taskleisten-Oberkante = 1080 - 40 = 1040 -> y = 1040 - 600 = 440.
@@ -183,7 +227,12 @@ mod tests {
 
     #[test]
     fn near_right_edge_schwellwert() {
-        let _monitor = ScreenRect { x: 0, y: 0, width: 1920, height: 1080 };
+        let _monitor = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
         // Rechte Kante bei 1910 -> 10 px Abstand -> innerhalb Schwelle 16.
         assert!(is_near_right_edge(1910 - 300, 300, 1920, DOCK_THRESHOLD));
         // Rechte Kante bei 1800 -> 120 px Abstand -> außerhalb.
@@ -192,12 +241,32 @@ mod tests {
 
     #[test]
     fn maybe_dock_nur_wenn_nah() {
-        let monitor = ScreenRect { x: 0, y: 0, width: 1920, height: 1080 };
-        let work = ScreenRect { x: 0, y: 0, width: 1920, height: 1040 };
-        let near = ScreenRect { x: 1620, y: 100, width: 300, height: 600 };
+        let monitor = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let work = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1040,
+        };
+        let near = ScreenRect {
+            x: 1620,
+            y: 100,
+            width: 300,
+            height: 600,
+        };
         let docked = maybe_dock(near, monitor, work, DOCK_THRESHOLD);
         assert_eq!(docked.x, 1620);
-        let far = ScreenRect { x: 200, y: 100, width: 300, height: 600 };
+        let far = ScreenRect {
+            x: 200,
+            y: 100,
+            width: 300,
+            height: 600,
+        };
         assert_eq!(maybe_dock(far, monitor, work, DOCK_THRESHOLD), far);
     }
 

@@ -62,18 +62,20 @@ fn spawn_tray_inner(accent: (u8, u8, u8)) -> Option<Receiver<TrayCommand>> {
     // Menü-Ereignisse abfangen: tray-icon 0.20 hat KEIN `on_menu_event` am
     // Builder, sondern einen globalen `TrayIconEvent`-Kanal. Wir hören in einem
     // eigenen Thread und leiten die Befehle per mpsc an den Freya-Thread weiter.
-    std::thread::spawn(move || loop {
-        match tray_icon::TrayIconEvent::receiver().recv() {
-            Ok(event) => match event.id().as_ref() {
-                "toggle" => {
-                    let _ = tx_toggle.send(TrayCommand::Toggle);
-                }
-                "quit" => {
-                    let _ = tx_quit.send(TrayCommand::Quit);
-                }
-                _ => {}
-            },
-            Err(_) => break,
+    std::thread::spawn(move || {
+        loop {
+            match tray_icon::TrayIconEvent::receiver().recv() {
+                Ok(event) => match event.id().as_ref() {
+                    "toggle" => {
+                        let _ = tx_toggle.send(TrayCommand::Toggle);
+                    }
+                    "quit" => {
+                        let _ = tx_quit.send(TrayCommand::Quit);
+                    }
+                    _ => {}
+                },
+                Err(_) => break,
+            }
         }
     });
 

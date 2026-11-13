@@ -22,6 +22,9 @@ Thumbs.db
 /.cargo/.package-cache
 /.cargo/.package-cache-mutate
 /.cargo/registry/
+# Maschinenspezifische Build-Konfiguration: nur .cargo/config.toml.example
+# ist committet (Vorlage, s. docs/BUILD.md §1.2)
+/.cargo/config.toml
 
 # QA/Beleg-Werkzeug (dev/) — lokale Archivarbeitskopie, nicht im Repo (SPEC §11)
 /dev/

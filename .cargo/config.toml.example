@@ -1,0 +1,15 @@
+# Vorlage für die lokale Build-Konfiguration (diese Datei ist committet).
+#
+#_usage: kopieren nach .cargo/config.toml und den Sysroot-Pfad der eigenen
+# Maschine eintragen. Die Datei .cargo/config.toml selbst ist absichtlich
+# NICHT im Repo (sie enthält maschinenspezifische Pfade, s. .gitignore).
+#
+# Hintergrund: Freya/Skia linkt gegen EGL/GL/GLESv2/wayland-egl. Auf einem
+# normalen Linux-System mit den Paketen aus docs/BUILD.md §1.2 ist dieser
+# Eintrag NICHT nötig — dort reicht das System-/usr/lib. Er ist nur nötig,
+# wenn die Grafik-Libs in einem lokalen Sysroot liegen (z. B. Sandbox
+# ohne sudo): dann den Pfad zum Verzeichnis eintragen, in dem libEGL.so,
+# libGL.so, libGLESv2.so und libwayland-egl.so liegen.
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-L", "/PFAD/ZUM/SYSROOT/usr/lib/x86_64-linux-gnu"]

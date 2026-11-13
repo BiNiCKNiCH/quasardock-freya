@@ -5,9 +5,9 @@
 
 ## 0. Ziel und Rahmen
 
-- Neues, eigenständiges Projekt unter `/home/tars/workspace/projects/app-freya-quasardock/`.
+- Neues, eigenständiges Projekt in einem eigenen Projektverzeichnis.
   Das Tauri-Original ist **nur Lesereferenz** und wird **niemals verändert**:
-  `/home/tars/workspace/projects/app-tauri-quasardock/` (README.md, docs/ARCHITEKTUR.md,
+  das Referenz-Repo (README.md, docs/ARCHITEKTUR.md,
   CHANGELOG.md, src/, src-tauri/). Exaktes Verhalten dort ablesen, nicht neu erfinden.
 - Motiv: alternative Testversion ohne WebView (der WebView2-Stack zieht >100 MB RAM).
   RAM ist **kein K.o.-Kriterium**, aber ein Mess-/Lernziel (siehe §9).

@@ -86,8 +86,8 @@ pub fn self_heal_autostart(should_enable: bool) -> Result<(), String> {
 
 #[cfg(windows)]
 fn read_raw() -> Option<String> {
-    use winreg::enums::*;
     use winreg::RegKey;
+    use winreg::enums::*;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let run = hkcu.open_subkey(REG_KEY).ok()?;
     run.get_value::<String, _>(REG_VALUE).ok()
@@ -95,8 +95,8 @@ fn read_raw() -> Option<String> {
 
 #[cfg(windows)]
 fn remove_raw() -> Result<(), String> {
-    use winreg::enums::*;
     use winreg::RegKey;
+    use winreg::enums::*;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let run = hkcu.open_subkey_with_flags(REG_KEY, KEY_WRITE).ok();
     if let Some(run) = run {
@@ -107,13 +107,15 @@ fn remove_raw() -> Result<(), String> {
 
 #[cfg(windows)]
 fn windows_read() -> bool {
-    read_raw().map(|s| s.trim() == current_exe_command().trim()).unwrap_or(false)
+    read_raw()
+        .map(|s| s.trim() == current_exe_command().trim())
+        .unwrap_or(false)
 }
 
 #[cfg(windows)]
 fn windows_set(enabled: bool) -> Result<(), String> {
-    use winreg::enums::*;
     use winreg::RegKey;
+    use winreg::enums::*;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let (run, _) = hkcu.create_subkey(REG_KEY).map_err(|e| e.to_string())?;
     if enabled {
@@ -165,7 +167,9 @@ fn remove_raw() -> Result<(), String> {
 
 #[cfg(unix)]
 fn unix_read() -> bool {
-    read_raw().map(|s| s.trim() == current_exe_command().trim()).unwrap_or(false)
+    read_raw()
+        .map(|s| s.trim() == current_exe_command().trim())
+        .unwrap_or(false)
 }
 
 #[cfg(unix)]
@@ -214,10 +218,7 @@ mod tests {
     #[test]
     fn xdg_autostart_an_aus() {
         // Temporäres XDG-Verzeichnis, damit kein echtes Home verändert wird.
-        let base = std::env::temp_dir().join(format!(
-            "qd-autostart-test-{}",
-            std::process::id()
-        ));
+        let base = std::env::temp_dir().join(format!("qd-autostart-test-{}", std::process::id()));
         unsafe { std::env::set_var("XDG_CONFIG_HOME", &base) };
         let _ = std::fs::remove_dir_all(&base);
 

@@ -485,9 +485,15 @@ mod tests {
         // Neu öffnen -> Werte sind persistent (nicht nur im flüchtigen State).
         let reopened = Store::open(Some(base.clone())).unwrap();
         let c = reopened.config();
-        assert!(c.settings.windows_autostart, "windows_autostart persistiert");
+        assert!(
+            c.settings.windows_autostart,
+            "windows_autostart persistiert"
+        );
         assert!(c.settings.start_in_tray, "start_in_tray persistiert");
-        assert!(c.settings.remember_geometry, "remember_geometry persistiert");
+        assert!(
+            c.settings.remember_geometry,
+            "remember_geometry persistiert"
+        );
     }
 
     // Nicht beschreibbarer `Data/`-Pfad → erkennbarer Fehler (kein stiller Fallback).

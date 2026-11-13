@@ -42,11 +42,10 @@ sudo apt install -y xvfb x11-utils imagemagick   # nur für Headless-Belege
 > `libwayland-egl` sowie `libxkbcommon-x11` / `libxcb-xkb`. Es wurde nichts
 > systemweit installiert, sondern nur lokal bereitgestellt:
 >
-> 1. **Linken:** `LIBRARY_PATH` auf den vorhandenen Sysroot
->    `/home/tars/workspace/tools/tauri-sysroot/usr/lib/x86_64-linux-gnu`
->    (enthält `libEGL.so`, `libGL.so`, `libGLESv2.so`, `libwayland-egl.so`).
-> 2. **Laden:** derselbe Sysroot plus
->    `/home/tars/workspace/.tools/syslib/usr/lib/x86_64-linux-gnu` in
+> 1. **Linken:** `LIBRARY_PATH` auf das Verzeichnis eines vorhandenen
+>    lokalen Sysroot, das die Grafik-Libs enthält
+>    (mit `libEGL.so`, `libGL.so`, `libGLESv2.so`, `libwayland-egl.so`).
+> 2. **Laden:** derselbe Sysroot plus ein zweites lokales Lib-Verzeichnis in
 >    `LD_LIBRARY_PATH`; dort liegen aus den Debian-Paketen
 >    `libxkbcommon-x11-0` und `libxcb-xkb1` entpackte `.so`-Dateien
 >    (`dpkg-deb -x`, Symlink `libxkbcommon-x11.so -> .so.0.0.0`).
