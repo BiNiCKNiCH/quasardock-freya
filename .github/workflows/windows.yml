@@ -37,7 +37,9 @@ jobs:
         run: |
           # Portable = EXE plus der beim ersten Start angelegte Data-Ordner bleibt
           # im Programmverzeichnis. Kein Installer, keine Registry, kein AppData.
-          New-Item -ItemType Directory -Force -Path staging | Out-Null
+          # Data/-Skelett wird als leere Struktur mitgeliefert.
+          New-Item -ItemType Directory -Force -Path staging/Data/logs | Out-Null
+          New-Item -ItemType File -Force -Path staging/Data/logs/.keep | Out-Null
           Copy-Item "target/release/quasardock.exe" staging/
           Copy-Item "app-icon.png" staging/
           Copy-Item "README.md" staging/

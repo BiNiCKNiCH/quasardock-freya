@@ -2,6 +2,10 @@
 //!
 //! Phase 0: Grundgerüst, Design-Freeze und Machbarkeitsnachweis.
 
+// Kein Konsolenfenster auf Windows (PE-Subsystem GUI); auf anderen Plattformen
+// ohne Wirkung.
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 mod ui; // UI (Phase 2) + Systemintegration-Verdrahtung (Phase 3).
 
 use freya::prelude::*;
