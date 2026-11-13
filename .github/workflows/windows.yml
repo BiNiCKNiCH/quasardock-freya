@@ -32,6 +32,20 @@ jobs:
       - name: Release-Build
         run: cargo build --release --locked
 
+      - name: Verify EXE icon resource (.rsrc)
+        shell: bash
+        run: |
+          rustup component add llvm-tools-preview
+          EXE=$(pwd)/target/release/quasardock.exe
+          echo "EXE-SHA256: $(sha256sum "$EXE" | cut -d' ' -f1)"
+          if rust-objdump -x "$EXE" 2>/dev/null | grep -qi "\.rsrc"; then
+            echo "OK: .rsrc-Segment mit Ressourcen (Icon) vorhanden"
+            rust-objdump -x "$EXE" 2>/dev/null | grep -i "rsrc"
+          else
+            echo "FEHLER: keine .rsrc-Ressource in der EXE — Icon nicht eingebettet"
+            exit 1
+          fi
+
       - name: Portable-ZIP packen
         shell: pwsh
         run: |
