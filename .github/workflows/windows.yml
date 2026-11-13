@@ -38,9 +38,14 @@ jobs:
           rustup component add llvm-tools-preview
           EXE=$(pwd)/target/release/quasardock.exe
           echo "EXE-SHA256: $(sha256sum "$EXE" | cut -d' ' -f1)"
-          if rust-objdump -x "$EXE" 2>/dev/null | grep -qi "\.rsrc"; then
+          has_rsrc=0
+          if rust-objdump -x "$EXE" 2>/dev/null | grep -qi "rsrc"; then has_rsrc=1; fi
+          if [ "$has_rsrc" -eq 0 ] && command -v dumpbin >/dev/null 2>&1; then
+            if dumpbin /headers "$EXE" 2>/dev/null | grep -qi "rsrc"; then has_rsrc=1; fi
+          fi
+          if [ "$has_rsrc" -eq 1 ]; then
             echo "OK: .rsrc-Segment mit Ressourcen (Icon) vorhanden"
-            rust-objdump -x "$EXE" 2>/dev/null | grep -i "rsrc"
+            rust-objdump -x "$EXE" 2>/dev/null | grep -i "rsrc" || dumpbin /headers "$EXE" 2>/dev/null | grep -i "rsrc"
           else
             echo "FEHLER: keine .rsrc-Ressource in der EXE — Icon nicht eingebettet"
             exit 1

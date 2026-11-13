@@ -12,10 +12,13 @@ fn main() {
             .set("FileDescription", "Portabler Programmstarter")
             .set("FileVersion", "0.1.0")
             .set("ProductVersion", "0.1.0");
-        // Beim Cross-Check (Linux -> windows-msvc, ohne rc.exe) tolerieren wir das
-        // Fehlen der Ressource; der echte Windows-Build (CI) muss gelingen.
+        // Auf dem echten Windows-Build (CI) MUSS das Einbetten gelingen — bei Fehler
+        // brechen wir den Build ab, damit ein fehlendes Icon nicht still als Erfolg
+        // durchschlüpft. Beim Cross-Check (Linux -> windows-msvc, ohne rc.exe) ist
+        // dieser Block eh nicht kompiliert (cfg(host=windows)).
         if let Err(e) = res.compile() {
-            eprintln!("winresource: Icon nicht eingebettet (Cross-Check?): {e}");
+            eprintln!("winresource: Icon-Einbettung fehlgeschlagen: {e}");
+            std::process::exit(1);
         }
     }
 }
