@@ -39,13 +39,17 @@ jobs:
           EXE=$(pwd)/target/release/quasardock.exe
           echo "EXE-SHA256: $(sha256sum "$EXE" | cut -d' ' -f1)"
           has_rsrc=0
-          if rust-objdump -x "$EXE" 2>/dev/null | grep -qi "rsrc"; then has_rsrc=1; fi
-          if [ "$has_rsrc" -eq 0 ] && command -v dumpbin >/dev/null 2>&1; then
-            if dumpbin /headers "$EXE" 2>/dev/null | grep -qi "rsrc"; then has_rsrc=1; fi
+          # 1) rust-objdump: Sektions-Header (zuverlaessiger als -x fuer PE)
+          if rust-objdump -h "$EXE" 2>/dev/null | grep -qi "rsrc"; then has_rsrc=1; fi
+          # 2) dumpbin via link.exe-Verzeichnis (steht i.d.R. nicht im PATH)
+          if [ "$has_rsrc" -eq 0 ] && command -v link.exe >/dev/null 2>&1; then
+            DUMPBIN="$(dirname "$(command -v link.exe)")/dumpbin.exe"
+            if [ -x "$DUMPBIN" ] && "$DUMPBIN" /headers "$EXE" 2>/dev/null | grep -qi "rsrc"; then has_rsrc=1; fi
           fi
+          # 3) rust-objdump -x als letzter Versuch
+          if [ "$has_rsrc" -eq 0 ] && rust-objdump -x "$EXE" 2>/dev/null | grep -qi "rsrc"; then has_rsrc=1; fi
           if [ "$has_rsrc" -eq 1 ]; then
             echo "OK: .rsrc-Segment mit Ressourcen (Icon) vorhanden"
-            rust-objdump -x "$EXE" 2>/dev/null | grep -i "rsrc" || dumpbin /headers "$EXE" 2>/dev/null | grep -i "rsrc"
           else
             echo "FEHLER: keine .rsrc-Ressource in der EXE — Icon nicht eingebettet"
             exit 1
