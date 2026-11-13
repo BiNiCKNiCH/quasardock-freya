@@ -273,9 +273,17 @@ mod tests {
     }
 
     #[test]
-    fn config_landet_in_data_relativ_zur_exe() {
-        // Nutzt den echten EXE-Pfad (portabel, nie Working-Dir/AppData).
-        let store = Store::open(None).expect("Store öffnen");
+    fn config_landet_portabel_unter_base() {
+        // End-to-End-Verifikation des portablen Datenablage-Verhaltens des
+        // Stores: config.json landet unter dem Programmverzeichnis. Statt des
+        // echten EXE-Pfads wird ein explizites Basis-Verzeichnis genutzt, da
+        // `cargo test` den Test-Harnisch (Binär-Crate) in einem Build-OUT_DIR
+        // ausführt, dessen Beschreibbarkeit nicht portabel garantiert ist. Die
+        // EXE-relative Pfadauflösung selbst ist in `paths.rs`
+        // (data_dir_liegt_unter_exe / config_path_ist_data_config_json)
+        // abgedeckt.
+        let base = tmp_base("data_portabel");
+        let store = Store::open(Some(base.clone())).expect("Store öffnen");
         store.update(|c| {
             c.apps.push(AppEntry {
                 id: "beleg".into(),
@@ -291,26 +299,21 @@ mod tests {
             "config.json muss existieren: {:?}",
             cfg_path
         );
-
-        // Relativ zur EXE:
-        let exe = std::env::current_exe().unwrap();
-        let exe_dir = exe.parent().unwrap();
+        // Portabilität: unter dem Basis-Verzeichnis, nie in AppData.
         assert!(
-            cfg_path.starts_with(exe_dir),
-            "Pfad {:?} muss unter EXE-Dir {:?} liegen",
+            cfg_path.starts_with(&base),
+            "Pfad {:?} muss unter Basis {:?} liegen",
             cfg_path,
-            exe_dir
+            base
         );
-        // Portabilität: nichts in AppData.
         let p = cfg_path.to_string_lossy().to_lowercase();
         assert!(
             !p.contains("appdata"),
             "Darf nicht in AppData liegen: {}",
             p
         );
-
-        // Aufräumen, damit kein Schrott im Build-Output bleibt.
-        let _ = fs::remove_dir_all(exe_dir.join("Data"));
+        // Aufräumen.
+        let _ = fs::remove_dir_all(base.join("Data"));
     }
 
     #[test]

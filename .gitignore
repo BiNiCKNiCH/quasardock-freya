@@ -28,3 +28,6 @@ Thumbs.db
 
 # QA/Beleg-Werkzeug (dev/) — lokale Archivarbeitskopie, nicht im Repo (SPEC §11)
 /dev/
+
+# Lokales TMPDIR der Build-Umgebung (kein Commit)
+.tmprun/
