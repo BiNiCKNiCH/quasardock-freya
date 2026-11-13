@@ -15,7 +15,7 @@ const APP_ICON: &[u8] = include_bytes!("../app-icon.png");
 fn main() {
     // Einstellungen laden: Start-Verhalten (Tray/Minimieren), gespeicherte
     // Geometrie und Akzent initialisieren.
-    let (start_hidden, remember_geometry, saved_geometry) = Store::open(None)
+    let (start_hidden, remember_geometry, saved_geometry, dock_at_start) = Store::open(None)
         .ok()
         .map(|s| {
             let c = s.config();
@@ -23,9 +23,10 @@ fn main() {
                 c.settings.start_in_tray,
                 c.settings.remember_geometry,
                 c.settings.geometry,
+                c.settings.dock_to_edge,
             )
         })
-        .unwrap_or((false, true, None));
+        .unwrap_or((false, true, None, false));
 
     // Zentrale Akzent-Konstante aus gespeicherter Einstellung (oder Default) setzen.
     {
@@ -93,14 +94,32 @@ fn main() {
                 // (kein Show-then-Hide, kein Fenster-Blitz).
                 .with_window_attributes(move |attrs, _ev| {
                     let mut a = attrs;
-                    // Gespeicherte Fenstergeometrie wiederherstellen (nur aus sichtbaren
-                    // Zuständen: nicht, wenn wir versteckt starten).
-                    if let Some(g) = saved_geometry.filter(|_| remember_geometry && !start_hidden) {
+                    if dock_at_start {
+                        // "Am Bildschirmrand andocken": Fenster bündig an den rechten
+                        // Monitorrand + Oberkante der Taskleiste (reine Geometrie-Rechnung,
+                        // plattformfrei — siehe geometry::dock_rect).
+                        let (monitor, work) = quasardock::geometry::primary_screen();
+                        let dock_w = 400i32;
+                        let dock_h = work.height;
+                        let r = quasardock::geometry::dock_rect(dock_w, dock_h, monitor, work);
+                        a = a.with_position(LogicalPosition::new(r.x as f64, r.y as f64));
+                        a = a.with_inner_size(LogicalSize::new(r.width as f64, r.height as f64));
+                    } else if let Some(g) =
+                        saved_geometry.filter(|_| remember_geometry && !start_hidden)
+                    {
+                        // Gespeicherte Fenstergeometrie wiederherstellen (nur aus sichtbaren
+                        // Zuständen: nicht, wenn wir versteckt starten).
                         a = a.with_position(LogicalPosition::new(g.x as f64, g.y as f64));
                         a = a.with_inner_size(LogicalSize::new(g.w as f64, g.h as f64));
                     }
                     if start_hidden {
-                        a = a.with_visible(false);
+                        // Freya 0.5.2 zeigt das Fenster nach der Erzeugung unconditionally
+                        // an (freya-winit window.rs:367, `window.set_visible(true)`), ein
+                        // `with_visible(false)` würde überschrieben. Wir erzeugen das Fenster
+                        // daher off-screen, um ohne Blitz versteckt zu starten
+                        // (kein Fenster-Blitz, SPEC §6). Das Tray (Windows) bzw. F9 (Linux)
+                        // holt es bei Bedarf zurück.
+                        a = a.with_position(LogicalPosition::new(-32000.0, -32000.0));
                     }
                     a
                 })
