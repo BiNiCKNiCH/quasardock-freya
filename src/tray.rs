@@ -16,13 +16,11 @@ use std::sync::mpsc::Receiver;
 // für das Windows-Target deklariert, damit der Linux-Build schlank und linkbar
 // bleibt (Freya's eigene `tray`-Feature würde tray-icon auch auf Linux ziehen).
 #[cfg(windows)]
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::channel;
 #[cfg(windows)]
-use tray_icon::{
-    TrayIconBuilder,
-    icon::Icon as TrayIcon,
-    menu::{Menu, MenuItem},
-};
+use tray_icon::menu::{Menu, MenuItem};
+#[cfg(windows)]
+use tray_icon::{Icon, TrayIconBuilder};
 
 /// Befehl vom Tray-Menü an den Freya-Thread.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,7 +44,7 @@ fn spawn_tray_inner(accent: (u8, u8, u8)) -> Option<Receiver<TrayCommand>> {
     let tx_quit = tx.clone();
 
     let (bytes, w, h) = make_icon(accent);
-    let icon = TrayIcon::from_rgba(bytes, w, h).ok()?;
+    let icon = Icon::from_rgba(bytes, w, h).ok()?;
 
     let menu = Menu::new();
     let item_toggle = MenuItem::with_id("toggle", "Zeigen / Verbergen", true, None);
@@ -57,24 +55,34 @@ fn spawn_tray_inner(accent: (u8, u8, u8)) -> Option<Receiver<TrayCommand>> {
     let handle = TrayIconBuilder::new()
         .with_tooltip("QuasarDock")
         .with_icon(icon)
-        .with_menu(menu)
-        .on_menu_event(move |_tray, event| match event.id().as_ref() {
-            "toggle" => {
-                let _ = tx_toggle.send(TrayCommand::Toggle);
-            }
-            "quit" => {
-                let _ = tx_quit.send(TrayCommand::Quit);
-            }
-            _ => {}
-        })
+        .with_menu(Box::new(menu))
         .build()
         .ok()?;
 
-    // Tray in eigenem Thread am Leben halten (sonst würde das Icon sofort verschwinden).
-    std::thread::spawn(move || {
-        let _keep_alive = handle;
-        std::thread::park();
+    // Menü-Ereignisse abfangen: tray-icon 0.20 hat KEIN `on_menu_event` am
+    // Builder, sondern einen globalen `TrayIconEvent`-Kanal. Wir hören in einem
+    // eigenen Thread und leiten die Befehle per mpsc an den Freya-Thread weiter.
+    std::thread::spawn(move || loop {
+        match tray_icon::TrayIconEvent::receiver().recv() {
+            Ok(event) => match event.id().as_ref() {
+                "toggle" => {
+                    let _ = tx_toggle.send(TrayCommand::Toggle);
+                }
+                "quit" => {
+                    let _ = tx_quit.send(TrayCommand::Quit);
+                }
+                _ => {}
+            },
+            Err(_) => break,
+        }
     });
+
+    // `TrayIcon` ist nicht `Send` (enthält `Rc<RefCell<…>>`) und kann daher nicht in
+    // einen eigenen Thread verschoben werden. Wir lassen es bewusst „leaken", damit
+    // das Icon für die gesamte Laufzeit der App (bis zum Prozess-Ende via „Beenden")
+    // erhalten bleibt. Die Fenster-Nachrichten (Menü-Klicks) werden ohnehin vom
+    // winit-Message-Loop der App dispatchet, nicht von diesem Thread.
+    std::mem::forget(handle);
     Some(rx)
 }
 
@@ -87,6 +95,7 @@ fn spawn_tray_inner(_accent: (u8, u8, u8)) -> Option<Receiver<TrayCommand>> {
 
 /// Synthetisiert ein einfaches, plattformneutrales Tray-Icon (Akzent-Quadrat mit
 /// transparentem Rand), da kein Bild-Asset zur Laufzeit geladen werden soll.
+#[cfg(windows)]
 fn make_icon(rgb: (u8, u8, u8)) -> (Vec<u8>, u32, u32) {
     let size = 32u32;
     let mut buf = Vec::with_capacity((size * size * 4) as usize);

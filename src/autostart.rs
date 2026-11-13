@@ -5,6 +5,7 @@
 //! Die reinen Hilfsfunktionen (`format_autostart_command`, `autostart_needs_heal`)
 //! sind plattformunabhängig und unit-testbar.
 
+#[cfg(unix)]
 use std::path::PathBuf;
 
 /// Registry-Schlüssel unter `HKCU`.

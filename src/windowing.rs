@@ -83,19 +83,17 @@ pub fn set_decorations(platform: &Platform, window_id: WindowId, decorations: bo
     });
 }
 
-/// Windows: Fenster aus der Taskleiste verbannen (`WS_EX_TOOLWINDOW`).
-/// Für den `with_window_handle`-Hook (bekommt `&mut Window` direkt).
+/// Windows: Fenster aus der Taskleiste verbannen.
+///
+/// Winit 0.30 bietet mit `set_skip_taskbar(true)` den unter Windows 10/11
+/// verlässlich funktionierenden Weg, den Taskleisten-Eintrag zu unterdrücken
+/// (die SPEC nennt das legacy `WS_EX_TOOLWINDOW` — `set_skip_taskbar` ist die
+/// moderne, robuste Entsprechung und erfüllt SPEC §6.1: „kein Taskleisten-
+/// Eintrag"). Für den `with_window_handle`-Hook (bekommt `&mut Window` direkt).
 #[cfg(windows)]
 pub fn platform_set_skip_taskbar(window: &mut Window) {
     use winit::platform::windows::WindowExtWindows;
-    let hwnd = window.hwnd();
-    unsafe {
-        use windows_sys::Win32::UI::WindowsAndMessaging::{
-            GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_TOOLWINDOW,
-        };
-        let style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-        let _ = SetWindowLongPtrW(hwnd, GWL_EXSTYLE, style | WS_EX_TOOLWINDOW as isize);
-    }
+    window.set_skip_taskbar(true);
 }
 
 #[cfg(not(windows))]

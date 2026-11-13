@@ -16,3 +16,12 @@
 *.swp
 .DS_Store
 Thumbs.db
+
+# Cargo-Build-Cache im projektlokalen .cargo/ (entsteht beim Build, kein CARGO_HOME)
+/.cargo/.global-cache
+/.cargo/.package-cache
+/.cargo/.package-cache-mutate
+/.cargo/registry/
+
+# QA/Beleg-Werkzeug (dev/) — lokale Archivarbeitskopie, nicht im Repo (SPEC §11)
+/dev/

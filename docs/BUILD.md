@@ -181,6 +181,34 @@ Compress-Archive -Path staging\* -DestinationPath quasardock-windows-x64-portabl
 (SPEC §5). Kein Installer nötig, keine Registry, kein `%APPDATA%`.
 Installer (NSIS/MSI) sind optional und nicht Teil von Phase 0.
 
+---
+
+## 3. Smoketest-Checkliste — braucht echten Windows-Lauf
+
+Die folgenden Punkte sind **plattformgebunden und auf der Linux-Box nicht
+runtime-verifizierbar**. Sie sind hier als Smoketest gelistet und dürfen NICHT
+als „verifiziert" behauptet werden — sie brauchen einen echten Windows-Lauf
+(Windows 10/11, MSVC-Toolchain, wie in §2.3/§2.4).
+
+| # | Punkt (SPEC) | Was prüfen | Erwartung |
+|---|---|---|---|
+| W1 | Tray-Icon immer vorhanden (§6.1) | App starten → Systray zeigt QuasarDock-Icon | Icon sichtbar, Menü „Zeigen/Verbergen" + „Beenden" |
+| W2 | Kein Taskleisten-Eintrag (§6.1) | `skip_taskbar` / `WS_EX_TOOLWINDOW` | Fenster taucht NICHT in der Taskleiste auf |
+| W3 | „Beim Start ins Tray minimieren" (§6.2) | Setting an → App startet ohne Fenster-Blitz | Fenster nicht sichtbar beim Start, nur Tray |
+| W4 | Schließen (X) → verbergen (§6.3) | X klicken | Fenster weg, App läuft im Tray weiter; Config geflusht |
+| W5 | Beenden nur via Tray (§6.3) | „Beenden" im Tray-Menü | Store wird geflusht, Prozess endet sauber |
+| W6 | Windows-Autostart Registry (§6.6) | Setting an/aus → `HKCU\…\Run` Eintrag | Eintrag vorhanden/entfernt; Self-Heal bei stale Pfad |
+| W7 | Echte App-Icons aus `.exe`/`.dll` (§7) | App mit `.exe`-Icon hinzufügen | PE-Ressourcen („MZ") decodiert, Icon sichtbar; `Data/logs/icons.txt` |
+| W8 | Andocken an Taskleiste (§6.4) | „Am Bildschirmrand andocken" an → Fenster rechter Rand + Oberkante Taskleiste | `compute_dock_rect` nutzt `SPI_GETWORKAREA`-Höhe |
+| W9 | Akzentfarbe wirkt (§6.7) | Accent-Preset/Hex ändern | Oberfläche übernimmt sofort (zentral `ACCENT`) |
+
+Die reinen **Geometrie- und Logik-Rechnungen** (Andock-Threshold, `dock_rect`,
+`taskbar_height`, Icon-Pfad-Klassifizierung, PE-Parsing, Registry-Befehls-
+Formatierung, Store-Flush) sind plattformfrei und werden auf Linux per
+`cargo test` abgedeckt (siehe `geometry.rs`, `icons.rs`, `autostart.rs`,
+`store.rs`). Nur die *Anbindung an die Windows-API* (Tray, `SPI_GETWORKAREA`,
+Registry, echtes PE-Laden) braucht W1–W8.
+
 ### 2.5 Windows-Icon
 
 `icons/icon.ico` liegt unverändert im Repo (identisch zur Referenz, sha256

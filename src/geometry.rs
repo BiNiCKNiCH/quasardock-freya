@@ -120,15 +120,14 @@ fn fallback_monitor() -> ScreenRect {
 #[cfg(windows)]
 fn spi_work_area() -> Option<ScreenRect> {
     use std::os::raw::c_void;
-    use windows_sys::Win32::UI::WindowsAndMessaging::{
-        SystemParametersInfoW, RECT, SPI_GETWORKAREA,
-    };
+    use windows_sys::Win32::Foundation::RECT;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{SystemParametersInfoW, SPI_GETWORKAREA};
     unsafe {
         let mut rect: RECT = std::mem::zeroed();
         if SystemParametersInfoW(
             SPI_GETWORKAREA,
             0,
-            Some(&mut rect as *mut _ as *mut c_void),
+            &mut rect as *mut _ as *mut c_void,
             0,
         ) != 0
         {

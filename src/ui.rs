@@ -743,7 +743,10 @@ fn view_dropdown_button(ctx: AppCtx) -> impl IntoElement {
     };
     rect()
         .height(Size::px(34.0))
-        .min_width(Size::px(110.0))
+        // Explizite Breite (Phasen-2-Mini-Fix): das Label „▤ Kacheln" darf nicht
+        // zweizeilig umbrechen („Ka/cheln"). min_width allein reicht in der
+        // horizontalen Flex-Zeile nicht, daher feste Breite statt nur Untergrenze.
+        .width(Size::px(132.0))
         .corner_radius(design::RADIUS_SMALL)
         .background(design::CANVAS)
         .border(Border::new().fill(design::BORDER).width(1.0))
