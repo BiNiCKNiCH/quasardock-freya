@@ -272,6 +272,25 @@ mod tests {
         dir
     }
 
+    /// Liegt der Pfad in einer AppData-Datenablage des Benutzerprofils?
+    /// Auf Windows ist das System-Temp-Verzeichnis die Ausnahme:
+    /// `%LOCALAPPDATA%\Temp` ist die Test-Arbeitsfläche (`tmp_base`),
+    /// keine App-Datenablage (SPEC §5/§10).
+    fn in_appdata(p: &Path) -> bool {
+        #[cfg(windows)]
+        {
+            let under_temp = p.starts_with(std::env::temp_dir());
+            ["APPDATA", "LOCALAPPDATA"]
+                .iter()
+                .filter_map(|v| std::env::var(v).ok())
+                .any(|d| p.starts_with(d) && !under_temp)
+        }
+        #[cfg(not(windows))]
+        {
+            p.to_string_lossy().to_lowercase().contains("appdata")
+        }
+    }
+
     #[test]
     fn config_landet_portabel_unter_base() {
         // End-to-End-Verifikation des portablen Datenablage-Verhaltens des
@@ -306,11 +325,10 @@ mod tests {
             cfg_path,
             base
         );
-        let p = cfg_path.to_string_lossy().to_lowercase();
         assert!(
-            !p.contains("appdata"),
+            !in_appdata(&cfg_path),
             "Darf nicht in AppData liegen: {}",
-            p
+            cfg_path.display()
         );
         // Aufräumen.
         let _ = fs::remove_dir_all(base.join("Data"));
