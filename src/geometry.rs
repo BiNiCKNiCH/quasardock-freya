@@ -271,6 +271,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn primary_screen_linux_fallback() {
         // Ohne QD_MONITOR: 1280x800.
         unsafe { std::env::remove_var("QD_MONITOR") };

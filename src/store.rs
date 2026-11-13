@@ -524,19 +524,24 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn nicht_beschreibbarer_pfad_fehler_windows() {
+        // Auf Windows verhindert das Read-only-Attribut am *Verzeichnis* das
+        // Anlegen neuer Dateien nicht — das atomare Schreiben scheitert aber
+        // zuverlässig, wenn das Rename-Ziel `config.json` selbst read-only ist.
         let base = tmp_base("readonly");
         let data = base.join("Data");
         fs::create_dir_all(&data).unwrap();
-        let mut perms = fs::metadata(&data).unwrap().permissions();
+        let cfg_path = data.join("config.json");
+        fs::write(&cfg_path, "{}").unwrap();
+        let mut perms = fs::metadata(&cfg_path).unwrap().permissions();
         perms.set_readonly(true);
-        fs::set_permissions(&data, perms).unwrap();
+        fs::set_permissions(&cfg_path, perms).unwrap();
 
         let store = Store::open(Some(data.clone())).unwrap();
         let res = store.save_now();
-        assert!(res.is_err(), "Read-only Data/-Pfad muss Fehler erzeugen");
+        assert!(res.is_err(), "Read-only config.json muss Fehler erzeugen");
 
-        let mut p2 = fs::metadata(&data).unwrap().permissions();
+        let mut p2 = fs::metadata(&cfg_path).unwrap().permissions();
         p2.set_readonly(false);
-        fs::set_permissions(&data, p2).unwrap();
+        fs::set_permissions(&cfg_path, p2).unwrap();
     }
 }
