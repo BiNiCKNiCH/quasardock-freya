@@ -41,6 +41,27 @@ pub enum StartState {
     Maximized,
 }
 
+/// Fenstergeometrie in logischen Pixeln (Bildschirmkoordinaten).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct WindowGeom {
+    pub x: i32,
+    pub y: i32,
+    pub w: i32,
+    pub h: i32,
+}
+
+impl Default for WindowGeom {
+    fn default() -> Self {
+        Self {
+            x: 0,
+            y: 0,
+            w: 1280,
+            h: 800,
+        }
+    }
+}
+
 /// Dauerhafte Einstellungen (SPEC §4.5 / §6).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
@@ -55,6 +76,9 @@ pub struct Settings {
     pub remember_geometry: bool,
     /// Windows-Autostart.
     pub windows_autostart: bool,
+    /// Gespeicherte Fenstergeometrie (nur aus sichtbaren Zuständen, SPEC §6).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub geometry: Option<WindowGeom>,
     /// Eigene Akzentfarbe (Hex); `None` = eingefrorenes Cyan (SPEC §4.5).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub accent_color: Option<String>,
@@ -72,6 +96,7 @@ impl Default for Settings {
             dock_to_edge: false,
             remember_geometry: true,
             windows_autostart: false,
+            geometry: None,
             accent_color: None,
             view_mode: ViewMode::Grid,
             sort_mode: SortMode::Manual,
@@ -97,6 +122,9 @@ pub struct AppEntry {
     pub start_state: StartState,
     /// Automatischer Start mit Startkette-Verzögerung (SPEC §4.8).
     pub auto_start: bool,
+    /// Verzögerung (ms) innerhalb der Auto-Start-Kette (SPEC §4.8).
+    #[serde(default)]
+    pub auto_start_delay_ms: u64,
 }
 
 impl Default for AppEntry {
@@ -112,6 +140,7 @@ impl Default for AppEntry {
             sort_order: 0,
             start_state: StartState::Normal,
             auto_start: false,
+            auto_start_delay_ms: 0,
         }
     }
 }

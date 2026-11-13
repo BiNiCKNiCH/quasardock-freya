@@ -10,6 +10,7 @@ use freya::prelude::*;
 use quasardock::design;
 use quasardock::model::*;
 use quasardock::store::Store;
+use quasardock::{autostart, icons, launcher, windowing};
 
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -120,6 +121,19 @@ impl<T: Clone + 'static> WithMutVal<T> for State<T> {
 fn commit(ctx: &AppCtx, f: impl FnOnce(&mut Config)) {
     ctx.store.update(f);
     ctx.config.set_val(ctx.store.config());
+}
+
+/// Schließen (X): Geometrie + offene Änderungen speichern, Fenster verbergen.
+/// Die App läuft im Tray weiter; Beenden erfolgt nur über das Tray-Menü
+/// (bzw. `platform.exit()` aus dem Tray-Befehl).
+fn close_to_tray(ctx: &AppCtx) {
+    if ctx.config.read().settings.remember_geometry {
+        if let Some(g) = windowing::read_geometry(&Platform::get(), Platform::window_id()) {
+            commit(ctx, |c| c.settings.geometry = Some(g));
+        }
+    }
+    let _ = ctx.store.save_now();
+    windowing::set_visible(&Platform::get(), Platform::window_id(), false);
 }
 
 /// Eindeutige ID (pro Sitzung stabil, hinreichend für Demo-Daten).
@@ -342,6 +356,7 @@ fn save_app_dialog(ctx: &AppCtx) {
         sort_order: 0,
         start_state,
         auto_start: auto,
+        auto_start_delay_ms: 0,
     };
     commit(ctx, |c| upsert_app(c, app));
     close_app_dialog(ctx);
@@ -350,7 +365,7 @@ fn save_app_dialog(ctx: &AppCtx) {
 /// Farbe des Buchstaben-Fallbacks (deterministisch aus dem Namen, SPEC §7).
 fn letter_color(s: &str) -> Color {
     let palette: [Color; 6] = [
-        design::ACCENT,
+        design::accent(),
         design::ACCENT_BRIGHT,
         design::POSITIVE,
         Color::from_rgb(0x81, 0x8C, 0xF8),
@@ -471,6 +486,11 @@ pub fn app() -> impl IntoElement {
                         }
                     }
                 }
+                if let Some(a) = v.get("accent").and_then(|x| x.as_str()) {
+                    if let Some(c) = design::parse_hex_color(a) {
+                        design::set_accent(c);
+                    }
+                }
             }
             Err(e) => eprintln!("[QD_INIT] parse error: {}", e),
         }
@@ -527,8 +547,40 @@ pub fn app() -> impl IntoElement {
                 } else if let Some(idx) = target_index {
                     let cf2 = snap(&ctx_gpu.current_folder);
                     commit(&ctx_gpu, |c| reorder_in_folder(c, &cf2, &app_id, idx));
+                } else {
+                    // Reinem Klick (kein Drag-Ziel) -> App starten (SPEC §4.9).
+                    if let Some(app) = ctx_gpu
+                        .store
+                        .config()
+                        .apps
+                        .iter()
+                        .find(|a| a.id == app_id)
+                        .cloned()
+                    {
+                        if let Err(e) = launcher::launch(&launcher::request_from_app(&app)) {
+                            eprintln!("[launch] {}: {}", app.name, e);
+                        }
+                        if ctx_gpu.store.config().settings.auto_minimize_after_launch {
+                            windowing::set_visible(&Platform::get(), Platform::window_id(), false);
+                        }
+                    }
                 }
                 ctx_gpu.drag.set_val(DragState::Idle);
+            }
+            // Fenster nach einem Drag am Bildschirmrand andocken (SPEC §6).
+            if snap(&ctx_gpu.config).settings.dock_to_edge {
+                windowing::dock_if_near(&Platform::get(), Platform::window_id());
+            }
+        })
+        .on_global_key_down(move |e: Event<KeyboardEventData>| {
+            // F9: Fenster zeigen/verbergen (Linux-Ersatz für das Tray-Menü).
+            if let Key::Named(NamedKey::F9) = &e.data().key {
+                let p = Platform::get();
+                let id = Platform::window_id();
+                p.with_window(id, |w| {
+                    let vis = w.is_visible().unwrap_or(false);
+                    w.set_visible(!vis);
+                });
             }
         })
         .child(titlebar(ctx.clone()))
@@ -570,9 +622,7 @@ fn titlebar(_ctx: AppCtx) -> impl IntoElement {
                 .border(Border::new().fill(design::BORDER).width(1.0))
                 .cross_align(Alignment::Center)
                 .main_align(Alignment::Center)
-                .on_press(move |_| {
-                    Platform::get().close_window(Platform::window_id());
-                })
+                .on_press(move |_| close_to_tray(&_ctx.clone()))
                 .child(
                     label()
                         .text("✕")
@@ -666,7 +716,7 @@ fn search_scope_button(ctx: AppCtx) -> impl IntoElement {
     rect()
         .height(Size::px(34.0))
         .corner_radius(design::RADIUS_SMALL)
-        .background(if all { design::ACCENT } else { design::CANVAS })
+        .background(if all { design::accent() } else { design::CANVAS })
         .border(Border::new().fill(design::BORDER).width(1.0))
         .padding(Gaps::new(0.0, 10.0, 0.0, 10.0))
         .cross_align(Alignment::Center)
@@ -693,7 +743,7 @@ fn view_dropdown_button(ctx: AppCtx) -> impl IntoElement {
     };
     rect()
         .height(Size::px(34.0))
-        .width(Size::px(34.0))
+        .min_width(Size::px(110.0))
         .corner_radius(design::RADIUS_SMALL)
         .background(design::CANVAS)
         .border(Border::new().fill(design::BORDER).width(1.0))
@@ -743,7 +793,7 @@ fn empty_state(ctx: AppCtx) -> Element {
             rect()
                 .height(Size::px(38.0))
                 .corner_radius(design::RADIUS_SMALL)
-                .background(design::ACCENT)
+                .background(design::accent())
                 .padding(Gaps::new(0.0, 16.0, 0.0, 16.0))
                 .cross_align(Alignment::Center)
                 .main_align(Alignment::Center)
@@ -788,6 +838,10 @@ fn tile(ctx: AppCtx, app: AppEntry, index: usize) -> impl IntoElement {
     let ctx_d = ctx.clone();
     let ctx_e = ctx.clone();
     let ctx_l = ctx.clone();
+    // SPEC §7: konfiguriertes Icon dekodieren + Diagnose (Buchstaben-Fallback visuell).
+    if let Some(icon_path) = &app.icon {
+        let _ = icons::get_app_icon(icon_path, &ctx.store.logs_dir());
+    }
     rect()
         .width(Size::px(TILE))
         .height(Size::px(TILE))
@@ -848,7 +902,7 @@ fn tile_visual(app: Option<AppEntry>, ghost: bool) -> impl IntoElement {
     } else {
         design::CONTROLS
     };
-    let border = if ghost { design::ACCENT } else { design::BORDER };
+    let border = if ghost { design::accent() } else { design::BORDER };
     rect()
         .width(Size::px(TILE))
         .height(Size::px(TILE))
@@ -914,6 +968,10 @@ fn list_row(ctx: AppCtx, app: AppEntry, index: usize) -> Element {
         .next()
         .unwrap_or('?')
         .to_string();
+    // SPEC §7: konfiguriertes Icon dekodieren + Diagnose (Buchstaben-Fallback visuell).
+    if let Some(icon_path) = &app.icon {
+        let _ = icons::get_app_icon(icon_path, &ctx.store.logs_dir());
+    }
     let name = app.name;
     rect()
         .width(Size::fill())
@@ -1049,7 +1107,7 @@ fn sidebar_top(ctx: AppCtx, cfg: Config, cf: String) -> impl IntoElement {
                         .width(Size::px(56.0))
                         .height(Size::px(3.0))
                         .corner_radius(2.0_f32)
-                        .background(design::ACCENT),
+                        .background(design::accent()),
                 ),
         )
         .child(
@@ -1122,7 +1180,7 @@ fn folder_row(ctx: AppCtx, folder: Folder, count: usize, active: bool) -> Elemen
                     .width(Size::px(3.0))
                     .height(Size::px(18.0))
                     .corner_radius(2.0_f32)
-                    .background(design::ACCENT),
+                    .background(design::accent()),
             )
             .child(text_field(
                 ctx_r.clone(),
@@ -1135,7 +1193,7 @@ fn folder_row(ctx: AppCtx, folder: Folder, count: usize, active: bool) -> Elemen
                 rect()
                     .height(Size::px(28.0))
                     .corner_radius(design::RADIUS_SMALL)
-                    .background(design::ACCENT)
+                    .background(design::accent())
                     .cross_align(Alignment::Center)
                     .main_align(Alignment::Center)
                     .padding(Gaps::new(0.0, 8.0, 0.0, 8.0))
@@ -1170,7 +1228,7 @@ fn folder_row(ctx: AppCtx, folder: Folder, count: usize, active: bool) -> Elemen
                     .height(Size::px(18.0))
                     .corner_radius(2.0_f32)
                     .background(if active {
-                        design::ACCENT
+                        design::accent()
                     } else {
                         design::CONTROLS
                     }),
@@ -1364,7 +1422,7 @@ fn menu_section(title: &str, items: Vec<(&str, bool, Rc<dyn Fn()>)>) -> impl Int
                                         })
                                         .font_size(design::FONT_BODY)
                                         .color(if selected {
-                                            design::ACCENT
+                                            design::accent()
                                         } else {
                                             design::TEXT_SECONDARY
                                         }),
@@ -1436,7 +1494,7 @@ fn settings_titlebar(ctx: AppCtx) -> impl IntoElement {
                                 .height(Size::px(32.0))
                                 .corner_radius(design::RADIUS_SMALL)
                                 .background(if sel {
-                                    design::ACCENT
+                                    design::accent()
                                 } else {
                                     design::CANVAS
                                 })
@@ -1537,7 +1595,7 @@ fn tab_ordner(ctx: AppCtx) -> Element {
                         rect()
                             .height(Size::px(34.0))
                             .corner_radius(design::RADIUS_SMALL)
-                            .background(design::ACCENT)
+                            .background(design::accent())
                             .padding(Gaps::new(0.0, 12.0, 0.0, 12.0))
                             .cross_align(Alignment::Center)
                             .main_align(Alignment::Center)
@@ -1587,7 +1645,7 @@ fn folder_manage_row(ctx: AppCtx, folder: Folder) -> Element {
                         .width(Size::px(3.0))
                         .height(Size::px(18.0))
                         .corner_radius(2.0_f32)
-                        .background(design::ACCENT),
+                        .background(design::accent()),
                 )
                 .child(
                     label()
@@ -1672,7 +1730,7 @@ fn tab_apps(ctx: AppCtx) -> Element {
                     rect()
                         .height(Size::px(30.0))
                         .corner_radius(design::RADIUS_SMALL)
-                        .background(if sel { design::ACCENT } else { design::CANVAS })
+                        .background(if sel { design::accent() } else { design::CANVAS })
                         .border(Border::new().fill(design::BORDER).width(1.0))
                         .padding(Gaps::new(0.0, 12.0, 0.0, 12.0))
                         .cross_align(Alignment::Center)
@@ -1720,7 +1778,7 @@ fn tab_apps(ctx: AppCtx) -> Element {
                 rect()
                     .height(Size::px(36.0))
                     .corner_radius(design::RADIUS_SMALL)
-                    .background(design::ACCENT)
+                    .background(design::accent())
                     .padding(Gaps::new(0.0, 14.0, 0.0, 14.0))
                     .cross_align(Alignment::Center)
                     .main_align(Alignment::Center)
@@ -1838,6 +1896,7 @@ fn tab_allgemein(ctx: AppCtx) -> Element {
     let tray = cfg.settings.start_in_tray;
     let auto_min = cfg.settings.auto_minimize_after_launch;
     let autostart = cfg.settings.windows_autostart;
+    let dock = cfg.settings.dock_to_edge;
 
     settings_scroll(
         rect()
@@ -1939,6 +1998,23 @@ fn tab_allgemein(ctx: AppCtx) -> Element {
                         commit(&ctx_r, |c| {
                             c.settings.windows_autostart = !c.settings.windows_autostart;
                         });
+                        let now = ctx_r.config.read().settings.windows_autostart;
+                        // Live in Registry (Windows) / XDG (Linux) schreiben; Self-Heal bei stale Pfad.
+                        if let Err(e) = autostart::set_autostart(now) {
+                            eprintln!("[autostart] {}", e);
+                        }
+                    })
+                }),
+            ))
+            .child(setting_card(
+                "Am Bildschirmrand andocken",
+                Some("Fenster bündig an rechten Rand + Oberkante der Taskleiste."),
+                switch(dock, {
+                    let ctx_r = ctx.clone();
+                    Rc::new(move || {
+                        commit(&ctx_r, |c| {
+                            c.settings.dock_to_edge = !c.settings.dock_to_edge;
+                        });
                     })
                 }),
             )),
@@ -1978,7 +2054,10 @@ fn setting_card(title: &str, hint: Option<&str>, control: impl IntoElement) -> i
 fn tab_darstellung(ctx: AppCtx, cfg: Config) -> Element {
     let current = cfg.settings.accent_color.clone();
     let ctx = ctx.clone();
-    let presets = ["#00B4D8", "#00E5FF", "#22C55E", "#F472B6", "#818CF8"];
+    let presets = [
+        "#00B4D8", "#00E5FF", "#3B82F6", "#8B5CF6", "#EC4899", "#EF4444", "#F59E0B",
+        "#22C55E",
+    ];
     settings_scroll(
         rect()
             .direction(Direction::Vertical)
@@ -1991,7 +2070,7 @@ fn tab_darstellung(ctx: AppCtx, cfg: Config) -> Element {
             )
             .child(
                 label()
-                    .text("Akzentfarbe (Voreinstellungen + eigene Hex-Farbe). Wirkung folgt in Phase 3.")
+                    .text("Akzentfarbe (Voreinstellungen + eigene Hex-Farbe). Wirkt sofort auf die Oberfläche.")
                     .font_size(design::FONT_META)
                     .color(design::TEXT_MUTED),
             )
@@ -2024,6 +2103,7 @@ fn tab_darstellung(ctx: AppCtx, cfg: Config) -> Element {
                                     )
                                     .on_press(move |_| {
                                         commit(&ctx.clone(), |c| c.settings.accent_color = Some(hex.clone()));
+                                        design::init_accent_from(Some(&hex));
                                     })
                                     .into()
                             })
@@ -2041,7 +2121,7 @@ fn tab_darstellung(ctx: AppCtx, cfg: Config) -> Element {
                 rect()
                     .height(Size::px(34.0))
                     .corner_radius(design::RADIUS_SMALL)
-                    .background(design::ACCENT)
+                    .background(design::accent())
                     .padding(Gaps::new(0.0, 12.0, 0.0, 12.0))
                     .cross_align(Alignment::Center)
                     .main_align(Alignment::Center)
@@ -2096,7 +2176,7 @@ fn tab_ueber(ctx: AppCtx, cfg: Config) -> Element {
             .child(
                 label()
                     .text(if accent.is_some() {
-                        "Akzentfarbe: benutzerdefiniert (Wirkung in Phase 3)."
+                        "Akzentfarbe: benutzerdefiniert."
                     } else {
                         "Akzentfarbe: eingefrorenes Cyan (#00B4D8)."
                     })
@@ -2202,7 +2282,7 @@ fn app_dialog(ctx: AppCtx) -> impl IntoElement {
                             rect()
                                 .height(Size::px(36.0))
                                 .corner_radius(design::RADIUS_SMALL)
-                                .background(design::ACCENT)
+                                .background(design::accent())
                                 .padding(Gaps::new(0.0, 14.0, 0.0, 14.0))
                                 .cross_align(Alignment::Center)
                                 .main_align(Alignment::Center)
@@ -2267,7 +2347,7 @@ fn folder_select(ctx: AppCtx) -> impl IntoElement {
                             rect()
                                 .height(Size::px(30.0))
                                 .corner_radius(design::RADIUS_SMALL)
-                                .background(if sel { design::ACCENT } else { design::CANVAS })
+                                .background(if sel { design::accent() } else { design::CANVAS })
                                 .border(Border::new().fill(design::BORDER).width(1.0))
                                 .padding(Gaps::new(0.0, 10.0, 0.0, 10.0))
                                 .cross_align(Alignment::Center)
@@ -2354,8 +2434,9 @@ fn text_field(
     } else {
         text
     };
+    // Platzhalter-Dimmstufe (lesbarer als TEXT_MUTED), SPEC-Abnahme Mini-Fix.
     let color = if is_empty && !focused {
-        design::TEXT_MUTED
+        Color::from_argb(255, 0x64, 0x74, 0x8B)
     } else {
         design::TEXT_PRIMARY
     };
@@ -2367,7 +2448,7 @@ fn text_field(
         .border(
             Border::new()
                 .fill(if focused {
-                    design::ACCENT
+                    design::accent()
                 } else {
                     design::BORDER
                 })
@@ -2409,7 +2490,7 @@ fn switch(current: bool, on_toggle: Rc<dyn Fn()>) -> impl IntoElement {
         .width(Size::px(w))
         .height(Size::px(h))
         .corner_radius(h as f32 / 2.0_f32)
-        .background(if current { design::ACCENT } else { design::HOVER })
+        .background(if current { design::accent() } else { design::HOVER })
         .on_press(move |_| on_toggle())
         .padding(Gaps::new_all(2.0))
         .direction(Direction::Horizontal)
@@ -2436,10 +2517,10 @@ fn segmented(options: &'static [&'static str], selected: usize, on_select: Rc<dy
             .height(Size::px(30.0))
             .min_width(Size::px(72.0))
             .corner_radius(design::RADIUS_SMALL)
-            .background(if sel { design::ACCENT } else { design::CANVAS })
+            .background(if sel { design::accent() } else { design::CANVAS })
             .border(
                 Border::new()
-                    .fill(if sel { design::ACCENT } else { design::BORDER })
+                    .fill(if sel { design::accent() } else { design::BORDER })
                     .width(1.0),
             )
             .cross_align(Alignment::Center)
@@ -2467,6 +2548,6 @@ fn hex_to_rgb(hex: &str) -> Color {
         let b = u8::from_str_radix(&hex[5..7], 16).unwrap_or(0);
         Color::from_rgb(r, g, b)
     } else {
-        design::ACCENT
+        design::accent()
     }
 }

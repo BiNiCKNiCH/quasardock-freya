@@ -31,6 +31,60 @@ pub const ACCENT_BRIGHT: Color = Color::from_rgb(0x00, 0xE5, 0xFF);
 pub const POSITIVE: Color = Color::from_rgb(0x22, 0xC5, 0x5E);
 
 // ---------------------------------------------------------------------------
+// Laufzeit-Akzent (Phase 3): zentrale, änderbare Akzent-Konstante
+// ---------------------------------------------------------------------------
+
+/// Liefert die aktuell aktive Akzentfarbe. Alle UI-Stellen lesen über `accent()`,
+/// damit ein Wechsel im Darstellung-Tab die gesamte Oberfläche erreicht.
+pub fn accent() -> Color {
+    *CURRENT_ACCENT.lock().expect("accent mutex")
+}
+
+/// Setzt die aktive Akzentfarbe (z. B. Preset oder eigene Hex im Darstellung-Tab).
+pub fn set_accent(color: Color) {
+    *CURRENT_ACCENT.lock().expect("accent mutex") = color;
+}
+
+/// Initialisiert die Laufzeit-Akzent aus einem gespeicherten Hex-Wert (oder Default).
+pub fn init_accent_from(hex: Option<&str>) {
+    if let Some(h) = hex {
+        if let Some(c) = parse_hex_color(h) {
+            set_accent(c);
+            return;
+        }
+    }
+    set_accent(ACCENT);
+}
+
+/// Vordefinierte Akzent-Presets für den Darstellung-Tab (Name, Hex).
+pub const ACCENT_PRESETS: &[(&str, &str)] = &[
+    ("Cyan", "#00B4D8"),
+    ("Blau", "#3B82F6"),
+    ("Violett", "#8B5CF6"),
+    ("Magenta", "#EC4899"),
+    ("Rot", "#EF4444"),
+    ("Amber", "#F59E0B"),
+    ("Grün", "#22C55E"),
+    ("Grau", "#94A3B8"),
+];
+
+/// Parst eine Hex-Farbe (`#RRGGBB`, `RRGGBB`, optional mit führendem `#`).
+pub fn parse_hex_color(hex: &str) -> Option<Color> {
+    let h = hex.trim().trim_start_matches('#');
+    if h.len() != 6 {
+        return None;
+    }
+    let r = u8::from_str_radix(&h[0..2], 16).ok()?;
+    let g = u8::from_str_radix(&h[2..4], 16).ok()?;
+    let b = u8::from_str_radix(&h[4..6], 16).ok()?;
+    Some(Color::from_rgb(r, g, b))
+}
+
+use std::sync::Mutex;
+
+static CURRENT_ACCENT: Mutex<Color> = Mutex::new(ACCENT);
+
+// ---------------------------------------------------------------------------
 // Text
 // ---------------------------------------------------------------------------
 

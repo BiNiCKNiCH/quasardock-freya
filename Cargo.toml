@@ -9,6 +9,25 @@ publish = false
 freya = "0.5"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Icon-Dekodierung (PNG/ICO/BMP) — plattformneutral, keine System-Libs.
+image = { version = "0.25", default-features = false, features = ["png", "ico", "bmp"] }
+# ICO-Mehrbild-Extraktion (größtes Bild wählen).
+ico = "0.4"
+# Async-Timer für die Tray-Befehls-Schleife (von Freya ohnehin transitiv genutzt).
+tokio = { version = "1", features = ["rt", "time", "macros"] }
+# Winit (Transitiv über Freya) direkt referenzierbar machen, damit Fenster-Geometrie
+# (Position/Größe) und Windows-spezifische Ext rasch nutzbar sind.
+winit = "0.30"
+
+# Windows-spezifische Systemintegration (nur beim Windows-Target kompiliert).
+[target.'cfg(windows)'.dependencies]
+tray-icon = "0.20"
+winreg = "0.52"
+windows-sys = { version = "0.52", features = [
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_SystemServices",
+    "Win32_Foundation",
+] }
 
 [[bin]]
 name = "quasardock"

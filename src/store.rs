@@ -467,6 +467,29 @@ mod tests {
         assert_eq!(cfg.apps[0].folder_id, FAVORITES_ID);
     }
 
+    // „Beenden" flushat die Config synchron, bevor die App endet (SPEC §6).
+    // Entspricht dem Tray-Befehl Quit -> store.save_now().
+    #[test]
+    fn beenden_flusht_config_vorher() {
+        let base = tmp_base("flush");
+        {
+            let store = Store::open(Some(base.clone())).unwrap();
+            store.update(|c| {
+                c.settings.windows_autostart = true;
+                c.settings.start_in_tray = true;
+                c.settings.remember_geometry = true;
+            });
+            // Beenden: synchroner Flush (kein Warten auf den Debounce-Thread).
+            store.save_now().expect("flush beim Beenden");
+        }
+        // Neu öffnen -> Werte sind persistent (nicht nur im flüchtigen State).
+        let reopened = Store::open(Some(base.clone())).unwrap();
+        let c = reopened.config();
+        assert!(c.settings.windows_autostart, "windows_autostart persistiert");
+        assert!(c.settings.start_in_tray, "start_in_tray persistiert");
+        assert!(c.settings.remember_geometry, "remember_geometry persistiert");
+    }
+
     // Nicht beschreibbarer `Data/`-Pfad → erkennbarer Fehler (kein stiller Fallback).
     #[cfg(unix)]
     #[test]
