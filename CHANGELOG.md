@@ -54,6 +54,9 @@ SPEC §4 (Stand: Tauri-Referenz v2.8).
 - GitHub-Actions-Workflow `.github/workflows/windows.yml` (`windows-latest`):
   `cargo test --all-targets` → `cargo clippy --all-targets -- -D warnings` →
   `cargo build --release --locked` → portables ZIP → Artefakt-Upload.
+  Die EXE wird als **GUI-Subsystem** gebaut (`windows_subsystem = "windows"`,
+  kein Konsolenfenster); das portable ZIP enthält `quasardock.exe`,
+  `app-icon.png`, `README.md` und das `Data/`-Skelett (`Data/logs/.keep`).
   Die Windows-EXE entsteht nur auf dem Windows-Läufer (MSVC-Linker); der
   Windows-Typcheck läuft lokal cross (`cargo check --target
   x86_64-pc-windows-msvc`).

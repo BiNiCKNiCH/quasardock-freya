@@ -149,7 +149,7 @@ Schritte: `checkout` → `dtolnay/rust-toolchain@stable` → `Swatinem/rust-cach
 Artefakte je Lauf:
 
 ```
-quasardock-windows-x64-portable.zip     (quasardock.exe + app-icon.png + README.md)
+quasardock-windows-x64-portable.zip     (quasardock.exe + app-icon.png + README.md + Data/logs/.keep)
 target/release/quasardock.exe
 ```
 
